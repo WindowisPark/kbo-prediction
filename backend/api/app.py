@@ -316,7 +316,7 @@ async def today_games(date: str | None = None):
 
 @app.post("/today/predict")
 async def predict_today():
-    """오늘 전 경기 일괄 예측."""
+    """오늘 전 경기 일괄 예측 — 병렬 실행."""
     if predictor is None:
         raise HTTPException(500, "Models not loaded")
 
@@ -324,31 +324,25 @@ async def predict_today():
     if not games:
         return {"game_date": "", "predictions": [], "message": "No games today"}
 
-    results = []
-    for game in games:
+    loop = asyncio.get_event_loop()
+
+    async def predict_single(game):
         if game["status"] == "final":
-            results.append({**game, "prediction": None, "note": "already finished"})
-            continue
+            return {**game, "prediction": None, "note": "already finished"}
 
         try:
             home = unify_team(game["home_team"])
             away = unify_team(game["away_team"])
-
             away_sp = game.get("away_starter", "")
             home_sp = game.get("home_starter", "")
             stadium = game.get("stadium", "")
             stadium_ctx = f"\n- 구장: {stadium}" if stadium else ""
 
-            result = predictor.predict_game(
-                home_team=home,
-                away_team=away,
-                date=game["date"],
-                extra_context=stadium_ctx,
-                home_starter=home_sp,
-                away_starter=away_sp,
-                home_team_raw=game["home_team"],
-                away_team_raw=game["away_team"],
-            )
+            result = await loop.run_in_executor(executor, lambda: predictor.predict_game(
+                home_team=home, away_team=away, date=game["date"],
+                extra_context=stadium_ctx, home_starter=home_sp, away_starter=away_sp,
+                home_team_raw=game["home_team"], away_team_raw=game["away_team"],
+            ))
 
             pred = {
                 "predicted_winner": result.predicted_winner,
@@ -359,31 +353,26 @@ async def predict_today():
                 "model_probabilities": result.model_probabilities,
                 "debate_log": result.debate_log,
             }
-            results.append({**game, "prediction": pred})
-
-            # 이력 저장
             prediction_history.append({
-                "date": game["date"],
-                "home_team": home,
-                "away_team": away,
+                "date": game["date"], "home_team": home, "away_team": away,
                 "predicted_winner": result.predicted_winner,
                 "home_win_probability": result.home_win_probability,
-                "confidence": result.confidence,
-                "key_factors": result.key_factors,
+                "confidence": result.confidence, "key_factors": result.key_factors,
                 "model_probs": result.model_probabilities,
-                "created_at": datetime.now().isoformat(),
-                "actual_winner": None,
+                "created_at": datetime.now().isoformat(), "actual_winner": None,
             })
+            return {**game, "prediction": pred}
         except Exception as e:
-            results.append({**game, "prediction": None, "error": str(e)})
+            return {**game, "prediction": None, "error": str(e)}
 
+    results = await asyncio.gather(*[predict_single(g) for g in games])
     save_history()
 
     dates = get_next_game_date()
     return {
         "game_date": dates.get("current", ""),
         "game_date_text": dates.get("current_text", ""),
-        "predictions": results,
+        "predictions": list(results),
     }
 
 

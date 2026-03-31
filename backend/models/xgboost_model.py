@@ -2,8 +2,16 @@
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, TimeSeriesSplit
 from .base import BasePredictor
+
+FILL_DEFAULTS = {
+    "h2h_win_pct": 0.5, "home_home_win_pct": 0.5, "away_away_win_pct": 0.5,
+    "home_era": 4.2, "away_era": 4.2, "home_sp_era": 4.2, "away_sp_era": 4.2,
+    "home_ops": 0.720, "away_ops": 0.720,
+    "home_whip": 1.35, "away_whip": 1.35,
+    "home_wrc_plus": 100.0, "away_wrc_plus": 100.0,
+}
 
 FEATURES = [
     # Rolling stats
@@ -77,7 +85,11 @@ class XGBoostPredictor(BasePredictor):
 
     def _prepare(self, X: pd.DataFrame) -> pd.DataFrame:
         available = [f for f in self.features if f in X.columns]
-        return X[available].fillna(0)
+        result = X[available].copy()
+        for col, default in FILL_DEFAULTS.items():
+            if col in result.columns:
+                result[col] = result[col].fillna(default)
+        return result.fillna(0)
 
     def fit(self, X: pd.DataFrame, y: pd.Series) -> None:
         X_prep = self._prepare(X)
@@ -96,7 +108,8 @@ class XGBoostPredictor(BasePredictor):
 
     def cross_validate(self, X: pd.DataFrame, y: pd.Series, cv: int = 5) -> dict:
         X_prep = self._prepare(X)
-        scores = cross_val_score(self.model, X_prep, y, cv=cv, scoring="accuracy")
+        tscv = TimeSeriesSplit(n_splits=cv)
+        scores = cross_val_score(self.model, X_prep, y, cv=tscv, scoring="accuracy")
         return {
             "cv_mean": scores.mean(),
             "cv_std": scores.std(),

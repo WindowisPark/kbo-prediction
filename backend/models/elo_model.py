@@ -42,7 +42,8 @@ class ELOPredictor(BasePredictor):
         away_elo = self.ratings[away]["elo"]
         expected = self._expected(home_elo, away_elo)
 
-        margin_mult = np.log(abs(margin) + 1) * (2.2 / (0.001 * (home_elo - away_elo) + 2.2))
+        elo_diff_winner = (home_elo - away_elo) if home_win == 1 else (away_elo - home_elo)
+        margin_mult = np.log(abs(margin) + 1) * (2.2 / (elo_diff_winner * 0.001 + 2.2))
         update = self.k * margin_mult * (home_win - expected)
 
         self.ratings[home]["elo"] += update

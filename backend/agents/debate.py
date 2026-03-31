@@ -112,10 +112,12 @@ def _extract_probability(text: str) -> float:
             prob = float(match.group(1))
             if 0 <= prob <= 1:
                 return prob
-    # 마지막 시도: 0.XXX 패턴
+    # 마지막 시도: 0.XXX 패턴 (ERA/OPS와 혼동 가능성 있음)
     all_probs = re.findall(r"0\.\d{2,3}", text)
     if all_probs:
-        return float(all_probs[-1])
+        val = float(all_probs[-1])
+        logger.warning(f"Probability extracted via generic fallback: {val} (may be inaccurate)")
+        return val
     return 0.5
 
 
@@ -150,57 +152,58 @@ class DebatePipeline:
         return response, client.provider
 
     def run_phase1(self, context: GameContext) -> list[AgentResponse]:
-        """Phase 1: 독립 분석 (각 에이전트 다른 LLM)."""
+        """Phase 1: 독립 분석 — 3 에이전트 병렬 실행."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         prompt = context.to_prompt()
-        responses = []
 
-        for name in self.agents:
-            logger.info(f"Phase 1 - {name}")
+        def call(name):
             content, provider = self._call_agent(name, f"다음 경기를 분석하세요:\n\n{prompt}")
-            responses.append(AgentResponse(
-                agent_name=name,
-                model_provider=provider,
-                round_num=0,
-                content=content,
-                probability=_extract_probability(content),
+            resp = AgentResponse(
+                agent_name=name, model_provider=provider, round_num=0,
+                content=content, probability=_extract_probability(content),
                 confidence=_extract_confidence(content),
-            ))
-            logger.info(f"  {name} ({provider}): prob={responses[-1].probability:.3f}")
+            )
+            logger.info(f"  Phase1 {name} ({provider}): prob={resp.probability:.3f}")
+            return resp
 
-        return responses
+        logger.info("Phase 1 - 3 agents in parallel")
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            futures = {pool.submit(call, name): name for name in self.agents}
+            responses = [f.result() for f in as_completed(futures)]
+
+        return sorted(responses, key=lambda r: list(self.agents.keys()).index(r.agent_name))
 
     def run_phase2(self, context: GameContext, prev_responses: list[AgentResponse]) -> list[AgentResponse]:
-        """Phase 2: 토론 라운드."""
+        """Phase 2: 토론 라운드 — 각 라운드 내 3 에이전트 병렬."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         current = prev_responses
 
         for round_num in range(1, self.debate_rounds + 1):
-            logger.info(f"Phase 2 - Round {round_num}")
-            new_responses = []
+            logger.info(f"Phase 2 - Round {round_num} (parallel)")
 
-            for name in self.agents:
-                others = [r for r in current if r.agent_name != name]
+            def call(name, cur=current):
+                others = [r for r in cur if r.agent_name != name]
                 other_text = "\n\n".join([
                     f"### {r.agent_name} [{r.model_provider}] "
                     f"(Round {r.round_num}, 확률: {r.probability:.3f}, 신뢰도: {r.confidence})\n{r.content}"
                     for r in others
                 ])
-
                 debate_prompt = DEBATE_ROUND_PROMPT.format(other_analyses=other_text)
                 full_prompt = f"원래 경기 정보:\n\n{context.to_prompt()}\n\n{debate_prompt}"
-
                 content, provider = self._call_agent(name, full_prompt)
                 resp = AgentResponse(
-                    agent_name=name,
-                    model_provider=provider,
-                    round_num=round_num,
-                    content=content,
-                    probability=_extract_probability(content),
+                    agent_name=name, model_provider=provider, round_num=round_num,
+                    content=content, probability=_extract_probability(content),
                     confidence=_extract_confidence(content),
                 )
-                new_responses.append(resp)
                 logger.info(f"  {name} ({provider}) R{round_num}: prob={resp.probability:.3f}")
+                return resp
 
-            current = new_responses
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                futures = {pool.submit(call, name): name for name in self.agents}
+                new_responses = [f.result() for f in as_completed(futures)]
+
+            current = sorted(new_responses, key=lambda r: list(self.agents.keys()).index(r.agent_name))
 
         return current
 
@@ -231,14 +234,18 @@ class DebatePipeline:
         client = get_client("Synthesizer")
         content = client.chat(SYNTHESIZER_SYSTEM, prompt)
 
-        # JSON 파싱
+        # JSON 파싱 — ```json 블록 우선, fallback으로 최대 {} 블록
         result = {}
         try:
-            json_match = re.search(r'\{[^{}]*\}', content, re.DOTALL)
-            if json_match:
-                result = json.loads(json_match.group())
+            json_blocks = re.findall(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+            if json_blocks:
+                result = json.loads(json_blocks[0])
+            else:
+                json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                if json_match:
+                    result = json.loads(json_match.group())
         except json.JSONDecodeError:
-            pass
+            logger.warning(f"Synthesizer JSON 파싱 실패. Raw: {content[:200]}")
 
         debate_log = [
             {
@@ -280,8 +287,8 @@ class DebatePipeline:
 
         phase1 = self.run_phase1(context)
         phase2 = self.run_phase2(context, phase1)
-        all_responses = phase1 + phase2
-        result = self.run_phase3(context, all_responses)
+        # Phase2만 Synthesizer에 전달 (Phase1은 이미 Phase2에 반영됨 — 토큰 절약)
+        result = self.run_phase3(context, phase2)
 
         logger.info(
             f"Final: {result.predicted_winner} "

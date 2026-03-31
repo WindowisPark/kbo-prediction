@@ -197,7 +197,8 @@ def compute_elo(games: pd.DataFrame, k: int = 20, home_adv: float = 30) -> pd.Da
         expected_home = 1 / (1 + 10 ** ((elo[away] - elo[home] - home_adv) / 400))
         actual_home = row["home_win"]
         margin = abs(row["run_diff"])
-        margin_mult = np.log(margin + 1) * (2.2 / (0.001 * (elo[home] - elo[away]) + 2.2))
+        elo_diff_winner = (elo[home] - elo[away]) if actual_home == 1 else (elo[away] - elo[home])
+        margin_mult = np.log(margin + 1) * (2.2 / (elo_diff_winner * 0.001 + 2.2))
 
         update = k * margin_mult * (actual_home - expected_home)
         elo[home] += update

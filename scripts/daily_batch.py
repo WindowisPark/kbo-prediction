@@ -157,7 +157,8 @@ def step3_update_elo(completed: list[dict]):
         expected = 1 / (1 + 10 ** ((away_elo - home_elo - home_adv) / 400))
         actual = 1 if game["home_score"] > game["away_score"] else 0
         margin = abs(game["home_score"] - game["away_score"])
-        margin_mult = np.log(margin + 1) * (2.2 / (0.001 * (home_elo - away_elo) + 2.2))
+        elo_diff_winner = (home_elo - away_elo) if actual == 1 else (away_elo - home_elo)
+        margin_mult = np.log(margin + 1) * (2.2 / (elo_diff_winner * 0.001 + 2.2))
 
         update = k * margin_mult * (actual - expected)
         elo[home] = home_elo + update
