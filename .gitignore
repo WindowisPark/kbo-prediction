@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+env/
+
+# Data files (large)
+data/raw/*.csv
+data/raw/*.parquet
+data/processed/*.csv
+data/processed/*.parquet
+data/features/*.csv
+data/features/*.parquet
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Runtime data
+data/batch.log
+data/daily_results.jsonl
+data/prediction_history.json
+data/elo_ratings.json
+
+# Claude
+.claude/
+
+# Node (frontend)
+node_modules/
+.next/
+out/
