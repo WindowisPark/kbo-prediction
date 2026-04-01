@@ -471,7 +471,7 @@ export default function Dashboard() {
 
   // 결과 로컬 캐시 저장/복원
   useEffect(() => {
-    const cached = sessionStorage.getItem(`kbo_games_${currentDateId}`);
+    const cached = localStorage.getItem(`kbo_games_${currentDateId}`);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
@@ -487,7 +487,7 @@ export default function Dashboard() {
   // 예측 결과가 바뀔 때 캐시 저장
   useEffect(() => {
     if (currentDateId && todayGames.some(g => g.prediction)) {
-      sessionStorage.setItem(`kbo_games_${currentDateId}`, JSON.stringify(todayGames));
+      localStorage.setItem(`kbo_games_${currentDateId}`, JSON.stringify(todayGames));
     }
   }, [todayGames, currentDateId]);
 
