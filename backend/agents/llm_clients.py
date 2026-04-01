@@ -1,11 +1,14 @@
 """
-멀티 LLM 클라이언트 — Claude + GPT 통합 인터페이스.
+멀티 LLM 클라이언트 — 3-provider 통합 인터페이스.
 
-개선:
-  - 싱글턴 캐시 (커넥션 풀 재사용)
-  - 재시도 로직 (3회, exponential backoff)
-  - Temperature 제어 (에이전트별)
-  - 토큰 사용량 로깅
+에이전트별 최적 모델 배정 (논문 기반):
+  - Analyst: Gemini 2.5 Flash (수학/추론 A, 저비용)
+  - Scout: GPT-4o (한국어 A+, KBO 도메인 지식)
+  - Critic: Claude Sonnet 4 (비판적 사고 A+, sycophancy 방지)
+  - Synthesizer: Gemini 2.5 Flash (JSON 안정적, 극저비용)
+
+3-provider 다양성: Google + OpenAI + Anthropic
+ReConcile 논문: 다른 모델 3개 > 같은 모델 5개
 """
 import os
 import time
@@ -18,12 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 class ClaudeClient:
-    def __init__(self, model: str = "claude-3-haiku-20240307", temperature: float = 0.4):
+    def __init__(self, model: str = "claude-sonnet-4-20250514", temperature: float = 0.4):
         from anthropic import Anthropic
         self.client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         self.model = model
         self.temperature = temperature
-        self.provider = f"claude/{model.split('-')[2]}"
+        self.provider = f"anthropic/{model.split('-')[1]}"
 
     def chat(self, system: str, user_msg: str, max_tokens: int = 1024) -> str:
         for attempt in range(3):
@@ -41,7 +44,7 @@ class ClaudeClient:
             except Exception as e:
                 if attempt < 2:
                     wait = 2 ** (attempt + 1)
-                    logger.warning(f"Claude API error (attempt {attempt+1}): {e}. Retrying in {wait}s...")
+                    logger.warning(f"Claude error (attempt {attempt+1}): {e}. Retry in {wait}s")
                     time.sleep(wait)
                 else:
                     raise
@@ -73,25 +76,56 @@ class GPTClient:
             except Exception as e:
                 if attempt < 2:
                     wait = 2 ** (attempt + 1)
-                    logger.warning(f"GPT API error (attempt {attempt+1}): {e}. Retrying in {wait}s...")
+                    logger.warning(f"GPT error (attempt {attempt+1}): {e}. Retry in {wait}s")
+                    time.sleep(wait)
+                else:
+                    raise
+
+
+class GeminiClient:
+    def __init__(self, model: str = "gemini-2.5-flash", temperature: float = 0.4):
+        from google import genai
+        self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        self.model = model
+        self.temperature = temperature
+        self.provider = f"gemini/{model}"
+
+    def chat(self, system: str, user_msg: str, max_tokens: int = 1024) -> str:
+        for attempt in range(3):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=user_msg,
+                    config={
+                        "system_instruction": system,
+                        "temperature": self.temperature,
+                        "max_output_tokens": max_tokens,
+                    },
+                )
+                logger.debug(f"Gemini response: {len(response.text)} chars")
+                return response.text
+            except Exception as e:
+                if attempt < 2:
+                    wait = 2 ** (attempt + 1)
+                    logger.warning(f"Gemini error (attempt {attempt+1}): {e}. Retry in {wait}s")
                     time.sleep(wait)
                 else:
                     raise
 
 
 # 싱글턴 캐시
-_client_cache: dict[str, ClaudeClient | GPTClient] = {}
+_client_cache: dict[str, ClaudeClient | GPTClient | GeminiClient] = {}
 
 AGENT_CONFIG: dict[str, dict] = {
-    "Analyst":     {"factory": lambda t: GPTClient("gpt-4o", t),         "temperature": 0.4},
-    "Scout":       {"factory": lambda t: ClaudeClient(temperature=t),    "temperature": 0.4},
-    "Critic":      {"factory": lambda t: GPTClient("gpt-4-turbo", t),    "temperature": 0.4},
-    "Synthesizer": {"factory": lambda t: GPTClient("gpt-4o", t),         "temperature": 0.1},
+    "Analyst":     {"factory": lambda t: GeminiClient("gemini-2.5-flash", t), "temperature": 0.4},
+    "Scout":       {"factory": lambda t: GPTClient("gpt-4o", t),              "temperature": 0.4},
+    "Critic":      {"factory": lambda t: ClaudeClient("claude-sonnet-4-20250514", t), "temperature": 0.4},
+    "Synthesizer": {"factory": lambda t: GeminiClient("gemini-2.5-flash", t), "temperature": 0.1},
 }
 
 
 def get_client(agent_name: str):
     if agent_name not in _client_cache:
-        config = AGENT_CONFIG.get(agent_name, {"factory": lambda t: ClaudeClient(temperature=t), "temperature": 0.4})
+        config = AGENT_CONFIG.get(agent_name, {"factory": lambda t: GeminiClient(temperature=t), "temperature": 0.4})
         _client_cache[agent_name] = config["factory"](config["temperature"])
     return _client_cache[agent_name]

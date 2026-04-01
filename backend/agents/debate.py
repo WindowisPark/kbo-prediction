@@ -6,11 +6,11 @@
   Phase 2: 토론 (2 라운드, 동시생성→수정)
   Phase 3: Synthesizer가 최종 종합
 
-모델 배정:
-  - Analyst (Claude Sonnet): 구조적/통계적 분석
-  - Scout (GPT-4o): 맥락 파악, 창의적 해석
-  - Critic (Claude Sonnet): 논리적 반박
-  - Synthesizer (GPT-4o): 종합/요약
+모델 배정 (3-provider 다양성):
+  - Analyst (Gemini 2.5 Flash): 수학/추론, 통계 분석
+  - Scout (GPT-4o): 한국어 맥락, KBO 도메인 지식
+  - Critic (Claude Sonnet 4): 비판적 사고, sycophancy 방지
+  - Synthesizer (Gemini 2.5 Flash): JSON 출력, 종합
 """
 import json
 import re
@@ -232,7 +232,7 @@ class DebatePipeline:
 위 토론을 종합하여 최종 예측을 JSON 형식으로 출력하세요."""
 
         client = get_client("Synthesizer")
-        content = client.chat(SYNTHESIZER_SYSTEM, prompt)
+        content = client.chat(SYNTHESIZER_SYSTEM, prompt, max_tokens=2048)
 
         # JSON 파싱 — ```json 블록 우선, fallback으로 최대 {} 블록
         result = {}
