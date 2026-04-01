@@ -36,13 +36,13 @@ export default function HistoryPage() {
       <h1 className="text-4xl font-black tracking-tight mb-2">
         Prediction <span className="gradient-text">History</span>
       </h1>
-      <p className="text-[#64748b] text-lg mb-8">과거 예측 결과 및 적중률 트래킹</p>
+      <p className="text-[#64748b] text-lg mb-8">과거 분석 결과 및 정확도 트래킹</p>
 
       {/* 통계 카드 */}
       {stats && (
         <div className="grid grid-cols-3 gap-4 mb-8">
           {[
-            { label: "Total Predictions", value: stats.total_predictions, color: "from-blue-600 to-cyan-600" },
+            { label: "Total Analyses", value: stats.total_predictions, color: "from-blue-600 to-cyan-600" },
             { label: "Correct", value: stats.correct, color: "from-emerald-600 to-emerald-500" },
             { label: "Accuracy", value: stats.accuracy > 0 ? `${Math.round(stats.accuracy * 100)}%` : "-", color: "from-orange-600 to-amber-500" },
           ].map((card, i) => (
@@ -60,8 +60,8 @@ export default function HistoryPage() {
       {predictions.length === 0 ? (
         <div className="text-center text-[#334155] py-20 bg-[#111827] rounded-xl border border-[#1e293b]">
           <div className="text-5xl mb-4">&#9918;</div>
-          <div className="text-lg font-semibold text-[#64748b]">아직 예측 이력이 없습니다</div>
-          <div className="text-sm text-[#334155] mt-1">Dashboard에서 첫 예측을 실행하세요</div>
+          <div className="text-lg font-semibold text-[#64748b]">아직 분석 기록이 없습니다</div>
+          <div className="text-sm text-[#334155] mt-1">Dashboard에서 첫 분석을 실행하세요</div>
         </div>
       ) : (
         <div className="space-y-2">

@@ -27,8 +27,8 @@ function PredictingIndicator() {
     "맥락 수집 중...",
     "ML 모델 실행 중...",
     "에이전트 분석 중...",
-    "토론 Round 1...",
-    "토론 Round 2...",
+    "다각도 검토 R1...",
+    "다각도 검토 R2...",
     "결과 종합 중...",
   ];
 
@@ -174,7 +174,7 @@ function PredictionResult({ p }: { p: Prediction }) {
 
           {/* 승리 예측 배너 */}
           <div className="text-center py-4 rounded-xl border border-[#1e293b] bg-[#0a0e1a]">
-            <div className="text-sm text-[#64748b] mb-1">AI 예측 승리팀</div>
+            <div className="text-sm text-[#64748b] mb-1">AI 분석 결과</div>
             <div className="text-2xl font-black" style={{ color: winnerMeta.color }}>
               {winnerMeta.name}
             </div>
@@ -387,7 +387,7 @@ function TodayGameCard({ game, onSelect, onLineup, onPredict }: {
       {pred && (
         <div className="mt-3 pt-3 border-t border-[#1e293b] flex items-center justify-between">
           <div className="text-xs">
-            <span className="text-[#64748b]">AI 예측: </span>
+            <span className="text-[#64748b]">AI 분석: </span>
             <span className="font-bold text-blue-400">
               {TEAM_META[pred.predicted_winner]?.short || pred.predicted_winner}
             </span>
@@ -415,7 +415,7 @@ function TodayGameCard({ game, onSelect, onLineup, onPredict }: {
           >
             {game.status === "predicting" ? (
               <PredictingIndicator />
-            ) : "Predict"}
+            ) : "Analyze"}
           </button>
         )}
         {pred && (
@@ -555,7 +555,7 @@ export default function Dashboard() {
       setPrediction(pred);
     } catch (e: unknown) {
       setTodayGames(prev => prev.map(g =>
-        g.game_id === game.game_id ? { ...g, error: e instanceof Error ? e.message : "예측 실패" } : g
+        g.game_id === game.game_id ? { ...g, error: e instanceof Error ? e.message : "분석 실패" } : g
       ));
     } finally {
       setPredictingIds(prev => {
@@ -583,11 +583,11 @@ export default function Dashboard() {
       {/* 히어로 */}
       <div className="mb-10">
         <h1 className="text-4xl font-black tracking-tight mb-3">
-          KBO <span className="gradient-text">AI Predictor</span>
+          KBO <span className="gradient-text">AI Analyzer</span>
         </h1>
         <p className="text-[#64748b] text-lg">
           3개 ML 모델 + <span className="text-blue-400">Claude</span> &
-          <span className="text-emerald-400"> GPT</span> 멀티 에이전트 토론
+          <span className="text-emerald-400"> GPT</span> 멀티 에이전트 분석
         </p>
       </div>
 
@@ -630,9 +630,9 @@ export default function Dashboard() {
             {predictingAll ? (
               <span className="flex items-center gap-2">
                 <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                {predictingIds.size}경기 예측 중...
+                {predictingIds.size}경기 분석 중...
               </span>
-            ) : "Predict All"}
+            ) : "Analyze All"}
           </button>
         </div>
 

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "KBO Predictor | AI 경기 예측",
-  description: "ML 모델 + 멀티 에이전트 토론 기반 KBO 경기 예측",
+  title: "KBO AI Analyzer | AI 경기 분석",
+  description: "ML 모델 + 멀티 에이전트 토론 기반 KBO 경기 분석 플랫폼",
 };
 
 export default function RootLayout({
@@ -36,7 +36,7 @@ export default function RootLayout({
                 K
               </div>
               <span className="text-lg font-bold tracking-tight text-white">
-                KBO <span className="gradient-text">Predictor</span>
+                KBO <span className="gradient-text">Analyzer</span>
               </span>
             </a>
             <div className="flex gap-1">
@@ -59,9 +59,28 @@ export default function RootLayout({
 
         <main className="flex-1">{children}</main>
 
-        <footer className="border-t border-[#1e293b] py-6 text-center text-xs text-[#64748b]">
-          <span className="gradient-text font-semibold">KBO Predictor</span>
-          {" "}&mdash; ML + Multi-Agent Debate Engine
+        {/* 면책 배너 — 상시 노출 */}
+        <div className="border-t border-amber-900/30 bg-amber-950/10 px-6 py-3">
+          <p className="max-w-5xl mx-auto text-xs text-amber-300/70 text-center leading-relaxed">
+            본 서비스는 통계 기반 스포츠 분석 정보를 제공하며, 경기 결과를 보장하지 않습니다.
+            분석 정보를 도박 목적으로 사용하는 것을 금지합니다.
+            도박 중독 상담:{" "}
+            <span className="text-amber-300 font-semibold">한국도박문제관리센터 1336</span>
+          </p>
+        </div>
+
+        <footer className="border-t border-[#1e293b] py-6 px-6">
+          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <span className="text-xs text-[#64748b]">
+              <span className="gradient-text font-semibold">KBO AI Analyzer</span>
+              {" "}&mdash; ML + Multi-Agent Debate Engine
+            </span>
+            <div className="flex gap-4 text-xs text-[#475569]">
+              <a href="/terms" className="hover:text-[#94a3b8] transition">이용약관</a>
+              <a href="/privacy" className="hover:text-[#94a3b8] transition">개인정보처리방침</a>
+              <a href="/disclaimer" className="hover:text-[#94a3b8] transition">면책조항</a>
+            </div>
+          </div>
         </footer>
       </body>
     </html>
