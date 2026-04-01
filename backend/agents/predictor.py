@@ -34,7 +34,7 @@ class GamePredictor:
     """ML 모델 + 에이전트 토론을 결합한 경기 예측기."""
 
     def __init__(self, features_path: str | Path = None, debate_rounds: int = 2):
-        self.features_path = features_path or ROOT / "data" / "features" / "game_features_v2.csv"
+        self.features_path = features_path or ROOT / "data" / "features" / "game_features_v5.csv"
         self.debate_rounds = debate_rounds
         self.features_df = None
         self.pitcher_df = None

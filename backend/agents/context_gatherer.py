@@ -23,6 +23,7 @@ def gather_context_from_data(
     away_team: str,
     date: str,
     features_df=None,
+    pitcher_df=None,
 ) -> str:
     """자체 데이터에서 맥락 정보 추출."""
     lines = []
@@ -82,6 +83,22 @@ def gather_context_from_data(
                     elif g["away_team"] == home_team and g["home_win"] == 0:
                         home_wins += 1
                 lines.append(f"\n### 올시즌 상대전적: {home_team} {home_wins}승 - {len(h2h)-home_wins}승 {away_team}")
+        except (ValueError, KeyError):
+            pass
+
+    # 올시즌 팀 스탯 (에이전트 맥락용 — ML 피처와 별도)
+    if pitcher_df is not None and not pitcher_df.empty:
+        try:
+            year = int(date[:4])
+            for team, label in [(home_team, "홈"), (away_team, "원정")]:
+                # 올시즌 투수 스탯
+                tp = pitcher_df[(pitcher_df["Year"] == year) & (pitcher_df["Team"] == team)]
+                if not tp.empty:
+                    import pandas as pd
+                    era = pd.to_numeric(tp["ERA"], errors="coerce").mean()
+                    fip = pd.to_numeric(tp["FIP"], errors="coerce").mean()
+                    war = pd.to_numeric(tp["WAR"], errors="coerce").sum()
+                    lines.append(f"\n### {team} {year} 시즌 투수 현황: ERA {era:.2f}, FIP {fip:.2f}, WAR {war:.1f}")
         except (ValueError, KeyError):
             pass
 
@@ -159,7 +176,7 @@ def gather_full_context(
     parts = []
 
     # 1. 자체 데이터 기반
-    data_ctx = gather_context_from_data(home_team, away_team, date, features_df)
+    data_ctx = gather_context_from_data(home_team, away_team, date, features_df, pitcher_df)
     if data_ctx:
         parts.append(data_ctx)
 

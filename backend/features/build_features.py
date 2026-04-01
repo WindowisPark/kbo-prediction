@@ -21,7 +21,7 @@ def load_games(path: str | Path) -> pd.DataFrame:
     df = pd.read_csv(path)
     df["away_team"] = df["away_team"].apply(unify_team)
     df["home_team"] = df["home_team"].apply(unify_team)
-    df["date"] = pd.to_datetime(df["date"], format="%Y.%m.%d")
+    df["date"] = pd.to_datetime(df["date"], format="mixed")
     df = df.sort_values("date").reset_index(drop=True)
 
     df = df[df["home_score"] != df["away_score"]].copy()
@@ -260,8 +260,13 @@ def add_prior_season_stats(games: pd.DataFrame, batting_path: str | Path, pitchi
     }).reset_index()
     sp_stats.columns = ["Year", "Team", "sp_era", "sp_fip", "sp_whip", "sp_war"]
 
-    # 전년도/2년전 스탯 블렌딩 함수
     def get_blended_stats(df, year, team, cols, w1=0.7, w2=0.3):
+        """
+        전년도 시즌 스탯 블렌딩 (학습용 — 누수 없음).
+        전년도 70% + 2년전 30%.
+
+        올시즌 스탯은 예측 시점에만 context_gatherer를 통해 에이전트에게 전달.
+        """
         prev1 = df[(df["Year"] == year - 1) & (df["Team"] == team)]
         prev2 = df[(df["Year"] == year - 2) & (df["Team"] == team)]
 
