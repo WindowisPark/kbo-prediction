@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NavLinks } from "@/components/NavLinks";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -39,21 +40,7 @@ export default function RootLayout({
                 KBO <span className="gradient-text">Analyzer</span>
               </span>
             </a>
-            <div className="flex gap-1">
-              {[
-                { href: "/", label: "Dashboard" },
-                { href: "/standings", label: "Standings" },
-                { href: "/history", label: "History" },
-              ].map((link) => (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className="px-4 py-2 rounded-lg text-sm text-[#94a3b8] hover:text-white hover:bg-[#1a2236] transition-all"
-                >
-                  {link.label}
-                </a>
-              ))}
-            </div>
+            <NavLinks />
           </div>
         </nav>
 

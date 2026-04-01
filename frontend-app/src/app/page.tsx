@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { TEAMS as TEAM_MAP, getTeam, type TeamMeta } from "@/lib/teams";
 
@@ -339,10 +339,10 @@ function TodayGameCard({ game, onSelect, onLineup, onPredict }: {
         </div>
         <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider ${
           isFinished ? "bg-[#1e293b] text-[#64748b]"
-          : game.status === "in_progress" ? "bg-green-500/10 text-green-400 border border-green-500/30"
+          : game.status === "in_progress" ? "bg-green-500/10 text-green-400 border border-green-500/30 flex items-center gap-1.5"
           : "bg-blue-500/10 text-blue-400 border border-blue-500/30"
         }`}>
-          {isFinished ? "Final" : game.status === "in_progress" ? "Live" : "Upcoming"}
+          {isFinished ? "Final" : game.status === "in_progress" ? (<><span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" /><span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" /></span>Live</>) : "Upcoming"}
         </span>
       </div>
 
@@ -406,7 +406,7 @@ function TodayGameCard({ game, onSelect, onLineup, onPredict }: {
       )}
 
       {/* 버튼 영역 */}
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-col sm:flex-row gap-2">
         {!pred && (
           <button
             onClick={(e) => { e.stopPropagation(); onPredict(game); }}
@@ -457,6 +457,17 @@ export default function Dashboard() {
   const [lineupData, setLineupData] = useState<LineupData | null>(null);
   const [lineupGameId, setLineupGameId] = useState("");
 
+  // 토스트
+  const [toasts, setToasts] = useState<{id: number; message: string; type: "success"|"error"}[]>([]);
+  const addToast = (message: string, type: "success" | "error" = "success") => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  };
+
+  // 결과 스크롤 ref
+  const resultRef = useRef<HTMLDivElement>(null);
+
   // 예측 진행 중 페이지 이탈 방지
   useEffect(() => {
     const hasActive = predictingIds.size > 0 || predictingAll;
@@ -468,6 +479,13 @@ export default function Dashboard() {
       return () => window.removeEventListener("beforeunload", handler);
     }
   }, [predictingIds, predictingAll]);
+
+  // 분석 결과 표시 시 스크롤
+  useEffect(() => {
+    if (prediction && resultRef.current) {
+      resultRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [prediction]);
 
   // 결과 로컬 캐시 저장/복원
   useEffect(() => {
@@ -553,10 +571,13 @@ export default function Dashboard() {
         g.game_id === game.game_id ? { ...g, prediction: pred } : g
       ));
       setPrediction(pred);
+      addToast(`${getTeam(game.away_team).short} vs ${getTeam(game.home_team).short} 분석 완료`);
     } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : "분석 실패";
       setTodayGames(prev => prev.map(g =>
-        g.game_id === game.game_id ? { ...g, error: e instanceof Error ? e.message : "분석 실패" } : g
+        g.game_id === game.game_id ? { ...g, error: errMsg } : g
       ));
+      addToast(`${getTeam(game.away_team).short} vs ${getTeam(game.home_team).short}: ${errMsg}`, "error");
     } finally {
       setPredictingIds(prev => {
         const next = new Set(prev);
@@ -581,11 +602,11 @@ export default function Dashboard() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">
       {/* 히어로 */}
-      <div className="mb-10">
-        <h1 className="text-4xl font-black tracking-tight mb-3">
+      <div className="mb-8">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mb-2">
           KBO <span className="gradient-text">AI Analyzer</span>
         </h1>
-        <p className="text-[#64748b] text-lg">
+        <p className="text-[#64748b] text-sm sm:text-lg">
           3개 ML 모델 + <span className="text-blue-400">Claude</span> &
           <span className="text-emerald-400"> GPT</span> 멀티 에이전트 분석
         </p>
@@ -593,9 +614,9 @@ export default function Dashboard() {
 
       {/* 경기 일정 */}
       <div className="mb-10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-lg sm:text-xl font-bold">
               KBO <span className="gradient-text-orange">Games</span>
             </h2>
             {/* 날짜 네비게이션 */}
@@ -620,15 +641,31 @@ export default function Dashboard() {
               >
                 &gt;
               </button>
+              {/* 캘린더 날짜 점프 */}
+              <input
+                type="date"
+                value={currentDateId ? `${currentDateId.slice(0,4)}-${currentDateId.slice(4,6)}-${currentDateId.slice(6,8)}` : ""}
+                onChange={(e) => e.target.value && loadGames(e.target.value.replace(/-/g, ""))}
+                className="bg-[#1e293b] text-[#94a3b8] text-xs font-mono px-2 py-1.5 rounded-lg border border-[#334155] hover:border-blue-500/50 focus:border-blue-500 focus:outline-none cursor-pointer [color-scheme:dark] w-[130px]"
+              />
             </div>
-            {todayDate && (
-              <span className="text-sm text-[#64748b] font-mono">{todayDate}</span>
-            )}
+            {/* 날짜 + 요일 표시 */}
+            {currentDateId && (() => {
+              const d = new Date(`${currentDateId.slice(0,4)}-${currentDateId.slice(4,6)}-${currentDateId.slice(6,8)}`);
+              const dayName = d.toLocaleDateString("ko-KR", { weekday: "short" });
+              const dayNum = d.getDay();
+              const dayColor = dayNum === 0 ? "text-red-400" : dayNum === 6 ? "text-blue-400" : "text-[#94a3b8]";
+              return (
+                <span className="text-sm font-mono text-[#64748b]">
+                  {todayDate} <span className={`font-semibold ${dayColor}`}>({dayName})</span>
+                </span>
+              );
+            })()}
           </div>
           <button onClick={handlePredictAll} disabled={predictingAll || todayGames.length === 0}
-            className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 disabled:from-[#1e293b] disabled:to-[#1e293b] disabled:text-[#64748b] text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all uppercase tracking-wider">
+            className="w-full sm:w-auto bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 disabled:from-[#1e293b] disabled:to-[#1e293b] disabled:text-[#64748b] text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all uppercase tracking-wider">
             {predictingAll ? (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center justify-center gap-2">
                 <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 {predictingIds.size}경기 분석 중...
               </span>
@@ -637,10 +674,43 @@ export default function Dashboard() {
         </div>
 
         {todayLoading ? (
-          <div className="text-[#64748b] text-sm">경기 일정 로딩 중...</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="bg-[#111827] rounded-xl border border-[#1e293b] p-4 animate-pulse">
+                <div className="flex justify-between mb-3">
+                  <div className="h-4 w-20 bg-[#1e293b] rounded" />
+                  <div className="h-4 w-16 bg-[#1e293b] rounded-full" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 bg-[#1e293b] rounded-full" />
+                    <div className="h-4 w-10 bg-[#1e293b] rounded" />
+                  </div>
+                  <div className="h-3 w-6 bg-[#1e293b] rounded" />
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-10 bg-[#1e293b] rounded" />
+                    <div className="w-9 h-9 bg-[#1e293b] rounded-full" />
+                  </div>
+                </div>
+                <div className="mt-4 h-8 bg-[#1e293b] rounded-lg" />
+              </div>
+            ))}
+          </div>
         ) : todayGames.length === 0 ? (
-          <div className="bg-[#111827] rounded-xl border border-[#1e293b] p-8 text-center text-[#64748b]">
-            오늘은 경기가 없습니다
+          <div className="bg-[#111827] rounded-xl border border-[#1e293b] p-12 text-center">
+            <div className="text-4xl mb-3 opacity-30">&#9918;</div>
+            <div className="text-lg font-semibold text-[#94a3b8] mb-2">경기가 없는 날입니다</div>
+            <p className="text-sm text-[#64748b] mb-5">다른 날짜의 경기를 확인해보세요.</p>
+            <div className="flex justify-center gap-3">
+              <button onClick={() => prevDate && loadGames(prevDate)} disabled={!prevDate}
+                className="px-4 py-2 text-sm rounded-lg bg-[#1e293b] hover:bg-[#334155] text-[#94a3b8] hover:text-white transition disabled:opacity-30">
+                &larr; 이전
+              </button>
+              <button onClick={() => nextDate && loadGames(nextDate)} disabled={!nextDate}
+                className="px-4 py-2 text-sm rounded-lg bg-[#1e293b] hover:bg-[#334155] text-[#94a3b8] hover:text-white transition disabled:opacity-30">
+                다음 &rarr;
+              </button>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -660,13 +730,16 @@ export default function Dashboard() {
 
       {/* 결과 */}
       {prediction && (
-        <div className="relative">
-          <button
-            onClick={() => setPrediction(null)}
-            className="absolute -top-2 right-0 w-8 h-8 flex items-center justify-center rounded-full bg-[#1e293b] hover:bg-[#334155] text-[#94a3b8] hover:text-white transition text-lg z-10"
-          >
-            &times;
-          </button>
+        <div ref={resultRef} className="animate-fadeInUp">
+          <div className="flex items-center justify-between mb-4 sticky top-16 z-10 bg-[#0a0e1a]/95 backdrop-blur-md py-3 -mx-6 px-6 border-b border-[#1e293b]">
+            <h2 className="text-base sm:text-lg font-bold">
+              분석 결과: {getTeam(prediction.away_team).short} vs {getTeam(prediction.home_team).short}
+            </h2>
+            <button onClick={() => { setPrediction(null); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              className="flex items-center gap-1.5 text-sm text-[#94a3b8] hover:text-white bg-[#1e293b] hover:bg-[#334155] px-3 py-1.5 rounded-lg transition active:scale-95">
+              &times; 닫기
+            </button>
+          </div>
           <PredictionResult p={prediction} />
         </div>
       )}
@@ -675,6 +748,20 @@ export default function Dashboard() {
       {lineupData && (
         <LineupPanel data={lineupData} gameId={lineupGameId} onClose={() => setLineupData(null)} />
       )}
+
+      {/* 토스트 알림 */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+        {toasts.map(t => (
+          <div key={t.id}
+            className={`px-4 py-3 rounded-xl border backdrop-blur-sm animate-fadeInUp text-sm font-medium shadow-xl ${
+              t.type === "success"
+                ? "bg-emerald-950/90 border-emerald-800/50 text-emerald-300"
+                : "bg-red-950/90 border-red-800/50 text-red-300"
+            }`}>
+            {t.message}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
