@@ -73,6 +73,18 @@ Update = K * margin_mult * (actual - expected)
 | 9 | run_diff_diff_30 | 0.021 |
 | 10 | bat_war_diff | 0.020 |
 
+## 에이전트 모델 배정 (v2 — 3-provider)
+
+| Agent | Model | Provider | 역할 | temp | 가격 (in/out) |
+|-------|-------|----------|------|------|-------------|
+| Analyst | Gemini 2.5 Pro | Google | 수학/추론, 통계 해석 | 0.4 | $1.25/$10 |
+| Scout | GPT-4o | OpenAI | 한국어, KBO 도메인 지식 | 0.4 | $2.5/$10 |
+| Critic | Claude Sonnet 4 | Anthropic | 비판적 사고, 반론 | 0.4 | $3/$15 |
+| Synthesizer | Gemini 2.5 Flash | Google | JSON 종합, 최종 출력 | 0.1 | $0.15/$0.6 |
+
+배정 근거: ReConcile (Chen et al. 2023) — 모델 다양성이 에이전트 수보다 중요.
+3-provider(Google+OpenAI+Anthropic) 구성으로 학습 데이터/정렬 방법론의 다양성 확보.
+
 ## 결측치 기본값
 
 ```python

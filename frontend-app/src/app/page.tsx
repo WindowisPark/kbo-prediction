@@ -607,8 +607,7 @@ export default function Dashboard() {
           KBO <span className="gradient-text">AI Analyzer</span>
         </h1>
         <p className="text-[#64748b] text-sm sm:text-lg">
-          3개 ML 모델 + <span className="text-blue-400">Claude</span> &
-          <span className="text-emerald-400"> GPT</span> 멀티 에이전트 분석
+          독자적 AI 분석 엔진 기반 경기 분석
         </p>
       </div>
 
