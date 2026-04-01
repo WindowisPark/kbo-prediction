@@ -9,13 +9,11 @@ venv/
 .venv/
 env/
 
-# Data files (large)
+# Data files (large) — keep processed/features for deployment
 data/raw/*.csv
 data/raw/*.parquet
-data/processed/*.csv
-data/processed/*.parquet
-data/features/*.csv
-data/features/*.parquet
+data/raw/*.zip
+# processed and features are tracked (needed for Railway deployment)
 
 # Environment
 .env

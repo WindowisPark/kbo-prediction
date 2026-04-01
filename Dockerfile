@@ -10,8 +10,6 @@ COPY config/ config/
 COPY scripts/ scripts/
 COPY data/processed/ data/processed/
 COPY data/features/ data/features/
-COPY data/raw/kbo_games_2000_2025.csv data/raw/kbo_games_2000_2025.csv
-COPY data/raw/kbo_starters_full.csv data/raw/kbo_starters_full.csv
 
 # 런타임 데이터 디렉토리
 RUN mkdir -p data/cache data/models
