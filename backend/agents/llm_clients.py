@@ -91,19 +91,29 @@ class GeminiClient:
         self.provider = f"gemini/{model}"
 
     def chat(self, system: str, user_msg: str, max_tokens: int = 1024) -> str:
+        from google.genai import types
         for attempt in range(3):
             try:
+                config = types.GenerateContentConfig(
+                    system_instruction=system,
+                    temperature=self.temperature,
+                    max_output_tokens=max(max_tokens, 4096),
+                    thinking_config=types.ThinkingConfig(thinking_budget=1024),
+                )
                 response = self.client.models.generate_content(
                     model=self.model,
                     contents=user_msg,
-                    config={
-                        "system_instruction": system,
-                        "temperature": self.temperature,
-                        "max_output_tokens": max_tokens,
-                    },
+                    config=config,
                 )
-                logger.debug(f"Gemini response: {len(response.text)} chars")
-                return response.text
+                text = response.text or ""
+                if not text and response.candidates:
+                    # thinking model이 출력 없이 끝난 경우
+                    for part in response.candidates[0].content.parts:
+                        if hasattr(part, "text") and part.text:
+                            text = part.text
+                            break
+                logger.debug(f"Gemini response: {len(text)} chars")
+                return text
             except Exception as e:
                 if attempt < 2:
                     wait = 2 ** (attempt + 1)
@@ -117,7 +127,7 @@ class GeminiClient:
 _client_cache: dict[str, ClaudeClient | GPTClient | GeminiClient] = {}
 
 AGENT_CONFIG: dict[str, dict] = {
-    "Analyst":     {"factory": lambda t: GeminiClient("gemini-2.5-flash", t), "temperature": 0.4},
+    "Analyst":     {"factory": lambda t: GeminiClient("gemini-2.5-pro", t),   "temperature": 0.4},
     "Scout":       {"factory": lambda t: GPTClient("gpt-4o", t),              "temperature": 0.4},
     "Critic":      {"factory": lambda t: ClaudeClient("claude-sonnet-4-20250514", t), "temperature": 0.4},
     "Synthesizer": {"factory": lambda t: GeminiClient("gemini-2.5-flash", t), "temperature": 0.1},
