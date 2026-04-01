@@ -27,6 +27,12 @@ alembic>=1.13.0
 # Optimization
 optuna>=3.5.0
 
+# Cache (optional — falls back to file cache if Redis unavailable)
+redis>=5.0.0
+
+# Browser automation (optional — for lineup scraping)
+playwright>=1.40.0
+
 # Utilities
 python-dotenv>=1.0.0
 tqdm>=4.66.0

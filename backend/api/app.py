@@ -37,6 +37,7 @@ from backend.api.schemas import (
 from backend.agents.predictor import GamePredictor
 from backend.scrapers.kbo_today import get_today_games, get_next_game_date, get_games_for_date
 from backend.utils.cost_tracker import get_daily_summary, get_monthly_summary
+from backend.utils.cache import get_cached, set_cached
 from backend.scrapers.kbo_lineup import get_lineup
 from backend.utils.team_mapping import CURRENT_TEAMS, unify_team
 
@@ -103,9 +104,14 @@ async def health():
 
 @app.post("/predict", response_model=PredictionResponse)
 async def predict_game(req: PredictionRequest):
-    """단일 경기 예측 (async — 동시 요청 가능)."""
+    """단일 경기 분석 (async — 캐시 + 동시 요청)."""
     if predictor is None:
         raise HTTPException(500, "Models not loaded")
+
+    # 캐시 확인
+    cached = get_cached(req.date, req.home_team, req.away_team)
+    if cached:
+        return PredictionResponse(**cached)
 
     loop = asyncio.get_event_loop()
     try:
@@ -138,6 +144,9 @@ async def predict_game(req: PredictionRequest):
         model_probabilities=ModelProbabilities(**result.model_probabilities),
         debate_log=[DebateEntry(**entry) for entry in result.debate_log],
     )
+
+    # 캐시 저장 (4시간 TTL)
+    set_cached(req.date, req.home_team, req.away_team, response.model_dump())
 
     # 이력 저장
     prediction_history.append({

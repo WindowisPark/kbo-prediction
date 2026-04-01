@@ -29,8 +29,8 @@
 
 ## 중간 우선순위
 
-- [ ] 경기 전 라인업 수집 (Playwright)
-- [ ] Redis 캐싱
+- [ ] 경기 전 라인업 수집 (KBO 사이트 구조상 제한 — ASP.NET UpdatePanel)
+- [x] 캐싱 (Redis + 파일 fallback, 4시간 TTL)
 
 ## 낮은 우선순위
 

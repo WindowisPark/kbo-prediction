@@ -39,6 +39,7 @@ data/prediction_history.json
 data/elo_ratings.json
 data/llm_costs.jsonl
 data/models/*.joblib
+data/cache/
 
 # Claude
 .claude/
