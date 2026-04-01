@@ -408,9 +408,9 @@ function TodayGameCard({ game, onSelect, onLineup, onPredict }: {
         <div className="mt-3 pt-3 border-t border-[#1e293b] text-xs text-red-400">{game.error}</div>
       )}
 
-      {/* 버튼 영역 */}
+      {/* 버튼 영역 — 종료 경기는 Lineup만 */}
       <div className="mt-3 flex flex-col sm:flex-row gap-2">
-        {!pred && (
+        {!isFinished && !pred && (
           <button
             onClick={(e) => { e.stopPropagation(); onPredict(game); }}
             disabled={game.status === "predicting"}
@@ -432,7 +432,7 @@ function TodayGameCard({ game, onSelect, onLineup, onPredict }: {
         {game.game_id && (
           <button
             onClick={(e) => { e.stopPropagation(); onLineup(game.game_id); }}
-            className="text-xs text-[#94a3b8] hover:text-cyan-400 bg-[#0a0e1a] hover:bg-[#1a2236] px-4 py-2 rounded-lg border border-[#1e293b] transition-all"
+            className={`text-xs text-[#94a3b8] hover:text-cyan-400 bg-[#0a0e1a] hover:bg-[#1a2236] px-4 py-2 rounded-lg border border-[#1e293b] transition-all ${isFinished && !pred ? "flex-1" : ""}`}
           >
             Lineup
           </button>
