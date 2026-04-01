@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { getTeam } from "@/lib/teams";
+import { API_URL } from "@/lib/config";
 
 interface PredictionHistory {
   date: string; home_team: string; away_team: string;
@@ -27,8 +28,8 @@ export default function HistoryPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch("http://localhost:8000/predictions?limit=500").then(r => r.json()),
-      fetch("http://localhost:8000/accuracy").then(r => r.json()),
+      fetch(`${API_URL}/predictions?limit=500`).then(r => r.json()),
+      fetch(`${API_URL}/accuracy`).then(r => r.json()),
     ]).then(([p, a]) => {
       setPredictions(p.predictions.reverse());
       setStats(a);

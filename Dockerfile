@@ -1,0 +1,21 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ backend/
+COPY config/ config/
+COPY scripts/ scripts/
+COPY data/processed/ data/processed/
+COPY data/features/ data/features/
+COPY data/raw/kbo_games_2000_2025.csv data/raw/kbo_games_2000_2025.csv
+COPY data/raw/kbo_starters_full.csv data/raw/kbo_starters_full.csv
+
+# 런타임 데이터 디렉토리
+RUN mkdir -p data/cache data/models
+
+EXPOSE 8000
+
+CMD ["uvicorn", "backend.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

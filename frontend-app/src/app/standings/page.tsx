@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { getTeam } from "@/lib/teams";
+import { API_URL } from "@/lib/config";
 
 interface TeamInfo { team: string; elo: number; recent_win_pct: number; streak: number; }
 
@@ -11,7 +12,7 @@ export default function StandingsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8000/standings")
+    fetch(`${API_URL}/standings`)
       .then(r => r.json())
       .then(d => { setTeams(d.teams); setLoading(false); })
       .catch(() => setLoading(false));

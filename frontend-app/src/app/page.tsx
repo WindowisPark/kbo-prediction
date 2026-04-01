@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { TEAMS as TEAM_MAP, getTeam, type TeamMeta } from "@/lib/teams";
+import { API_URL } from "@/lib/config";
 
 const TEAM_IDS = ["KIA","KT","LG","NC","SSG","두산","롯데","삼성","Heroes","한화"];
 
@@ -516,8 +517,8 @@ export default function Dashboard() {
     setTodayLoading(true);
     setPrediction(null);
     const url = dateParam
-      ? `http://localhost:8000/today?date=${dateParam}`
-      : "http://localhost:8000/today";
+      ? `${API_URL}/today?date=${dateParam}`
+      : `${API_URL}/today`;
     fetch(url)
       .then(r => r.json())
       .then(d => {
@@ -535,7 +536,7 @@ export default function Dashboard() {
 
   const fetchLineup = async (gameId: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/game/${gameId}/lineup`);
+      const res = await fetch(`${API_URL}/game/${gameId}/lineup`);
       const data = await res.json();
       setLineupData(data);
       setLineupGameId(gameId);
@@ -556,7 +557,7 @@ export default function Dashboard() {
         game.stadium ? `- 구장: ${game.stadium}` : "",
       ].filter(Boolean).join("\n");
 
-      const res = await fetch("http://localhost:8000/predict", {
+      const res = await fetch(`${API_URL}/predict`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

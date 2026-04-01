@@ -1,0 +1,32 @@
+name: Daily KBO Batch
+
+on:
+  schedule:
+    - cron: '0 15 * * *'  # UTC 15:00 = KST 00:00
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  batch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run daily batch
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: python scripts/daily_batch.py
+
+      - name: Commit updated data
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "daily: ELO update + accuracy tracking"
+          file_pattern: "data/*.json data/*.jsonl"
