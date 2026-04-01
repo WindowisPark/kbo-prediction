@@ -9,7 +9,7 @@ export interface TeamMeta {
 
 export const TEAMS: Record<string, TeamMeta> = {
   KIA:    { id: "KIA",    name: "KIA 타이거즈",    short: "KIA",  color: "#e11d48", bgColor: "#e11d4820", emblem: "/emblems/KIA.svg" },
-  KT:     { id: "KT",     name: "kt wiz",          short: "KT",   color: "#000000", bgColor: "#00000020", emblem: "/emblems/KT.svg" },
+  KT:     { id: "KT",     name: "kt wiz",          short: "KT",   color: "#7c7c7a", bgColor: "#7c7c7a20", emblem: "/emblems/KT.svg" },
   LG:     { id: "LG",     name: "LG 트윈스",       short: "LG",   color: "#c2002f", bgColor: "#c2002f20", emblem: "/emblems/LG.svg" },
   NC:     { id: "NC",     name: "NC 다이노스",      short: "NC",   color: "#1b3668", bgColor: "#1b366820", emblem: "/emblems/NC.svg" },
   SSG:    { id: "SSG",    name: "SSG 랜더스",       short: "SSG",  color: "#ce0e2d", bgColor: "#ce0e2d20", emblem: "/emblems/SSG.svg" },
