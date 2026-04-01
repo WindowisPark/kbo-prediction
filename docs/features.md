@@ -1,7 +1,7 @@
 # 피처 엔지니어링 명세
 
 **파일**: `backend/features/build_features.py`
-**매트릭스**: `data/features/game_features_v3.csv` (15,026행 × 97열)
+**매트릭스**: `data/features/game_features_v4.csv` (15,026행 × 104열)
 
 ## 카테고리별 피처
 
@@ -67,16 +67,18 @@
 | `is_weekend` | 주말 여부 |
 | `days_into_season` | 시즌 경과일 |
 
-### 선발투수 실제 스탯 — v3 추가 (7개)
+### 선발투수 실제 스탯 — v3~v4 (14개)
 | 피처 | 설명 |
 |------|------|
 | `away_starter` | 원정 선발투수 이름 |
-| `away_sp_era_actual` | 해당 시즌 실제 ERA |
-| `away_sp_fip_actual` | 실제 FIP |
-| `away_sp_war_actual` | 실제 WAR |
-| `away_sp_whip_actual` | 실제 WHIP |
-| `sp_era_actual_diff` | 선발 ERA 차이 |
+| `away_sp_era_actual` / `home_sp_era_actual` | 해당 시즌 실제 ERA |
+| `away_sp_fip_actual` / `home_sp_fip_actual` | 실제 FIP |
+| `away_sp_war_actual` / `home_sp_war_actual` | 실제 WAR |
+| `away_sp_whip_actual` / `home_sp_whip_actual` | 실제 WHIP |
+| `sp_era_actual_diff` | 선발 ERA 차이 (홈-원정) |
 | `sp_war_actual_diff` | 선발 WAR 차이 |
+| `sp_fip_actual_diff` | 선발 FIP 차이 |
+| `sp_whip_actual_diff` | 선발 WHIP 차이 |
 
 ## 누수 방지 체크리스트
 
