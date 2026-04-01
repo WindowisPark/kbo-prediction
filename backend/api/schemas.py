@@ -18,7 +18,8 @@ class BatchPredictionRequest(BaseModel):
 class ModelProbabilities(BaseModel):
     xgboost: float
     elo: float
-    bayesian: float
+    ensemble: float
+    ai_combined: float
 
 
 class DebateEntry(BaseModel):

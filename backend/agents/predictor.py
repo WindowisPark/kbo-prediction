@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT))
 from backend.models.xgboost_model import XGBoostPredictor
 from backend.models.elo_model import ELOPredictor
 from backend.models.bayesian_model import BayesianPredictor
+from backend.models.stacking_model import StackingPredictor
 from backend.agents.debate import DebatePipeline, GameContext, DebateResult
 from backend.agents.context_gatherer import gather_full_context
 from backend.utils.team_mapping import unify_team
@@ -40,6 +41,7 @@ class GamePredictor:
         self.xgb = None
         self.elo = None
         self.bay = None
+        self.stacking = None
         self.debate = None
 
     def load_models(self):
@@ -75,10 +77,26 @@ class GamePredictor:
         else:
             logger.info("ELO trained from scratch")
 
-        # Bayesian
+        # EnsembleLGBM
         self.bay = BayesianPredictor(n_bootstrap=5)
         self.bay.fit(train, y_train)
-        logger.info("Bayesian trained")
+        logger.info("EnsembleLGBM trained")
+
+        # Stacking — valid set(2023-2024)에서 메타 러너 학습
+        valid = self.features_df[self.features_df["season"].isin([2023, 2024])].copy()
+        y_valid = valid["home_win"]
+        if len(valid) > 0:
+            import numpy as np
+            xgb_vp = self.xgb.predict_proba(valid)
+            bay_vp = self.bay.predict_proba(valid)
+            # ELO valid용 별도 인스턴스
+            elo_v = ELOPredictor(k=20, home_adv=30, reversion=0.3)
+            elo_v.fit(train, y_train)
+            elo_vp = elo_v.predict_and_update(valid)
+            meta_valid = np.column_stack([xgb_vp, elo_vp, bay_vp])
+            self.stacking = StackingPredictor()
+            self.stacking.fit_meta(meta_valid, y_valid.values)
+            logger.info("Stacking meta-learner trained")
 
         # 투수 스탯 DB (선발투수 조회용)
         pitcher_path = ROOT / "data" / "processed" / "pitching_2000_2025.csv"
@@ -144,6 +162,13 @@ class GamePredictor:
         elo_away = self.elo.ratings.get(away_team, {}).get("elo", 1500)
         elo_prob = 1 / (1 + 10 ** ((elo_away - elo_home - 30) / 400))
 
+        # Stacking (AI 종합)
+        import numpy as np
+        ensemble_prob = float((xgb_prob + elo_prob + bay_prob) / 3)  # fallback
+        if self.stacking:
+            meta = np.array([[xgb_prob, elo_prob, bay_prob]])
+            ensemble_prob = float(self.stacking.predict_proba_meta(meta)[0])
+
         # 팀 컨텍스트
         home_ctx = self._get_team_context(home_team)
         away_ctx = self._get_team_context(away_team)
@@ -180,6 +205,7 @@ class GamePredictor:
             xgboost_prob=xgb_prob,
             elo_prob=elo_prob,
             bayesian_prob=bay_prob,
+            ensemble_prob=ensemble_prob,
             home_elo=elo_home,
             away_elo=elo_away,
             home_win_pct_10=home_ctx["win_pct_10"],

@@ -35,6 +35,7 @@ class GameContext:
     xgboost_prob: float
     elo_prob: float
     bayesian_prob: float
+    ensemble_prob: float = 0.5
     home_elo: float = 1500
     away_elo: float = 1500
     home_win_pct_10: float = 0.5
@@ -49,17 +50,16 @@ class GameContext:
     extra_context: str = ""
 
     def to_prompt(self) -> str:
-        model_avg = (self.xgboost_prob + self.elo_prob + self.bayesian_prob) / 3
         return f"""## 경기 정보
 - 날짜: {self.date}
 - 홈팀: {self.home_team}
 - 원정팀: {self.away_team}
 
-## ML 모델 예측 (홈팀 승리 확률)
+## ML 모델 분석 (홈팀 승리 확률)
 - XGBoost: {self.xgboost_prob:.3f}
 - ELO: {self.elo_prob:.3f}
-- Bayesian: {self.bayesian_prob:.3f}
-- 모델 평균: {model_avg:.3f}
+- Ensemble: {self.bayesian_prob:.3f}
+- **AI 종합: {self.ensemble_prob:.3f}**
 
 ## 팀 데이터
 | 지표 | {self.home_team} (홈) | {self.away_team} (원정) |
@@ -277,7 +277,8 @@ class DebatePipeline:
             model_probabilities={
                 "xgboost": context.xgboost_prob,
                 "elo": context.elo_prob,
-                "bayesian": context.bayesian_prob,
+                "ensemble": context.bayesian_prob,
+                "ai_combined": context.ensemble_prob,
             },
         )
 

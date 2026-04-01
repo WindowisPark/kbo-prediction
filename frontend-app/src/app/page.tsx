@@ -17,7 +17,7 @@ interface Prediction {
   home_team: string; away_team: string;
   predicted_winner: string; home_win_probability: number;
   confidence: string; key_factors: string[]; reasoning: string;
-  model_probabilities: { xgboost: number; elo: number; bayesian: number };
+  model_probabilities: { xgboost: number; elo: number; ensemble: number; ai_combined: number };
   debate_log: DebateEntry[];
 }
 
@@ -193,7 +193,10 @@ function PredictionResult({ p }: { p: Prediction }) {
           <div className="space-y-3">
             <ModelBar prob={p.model_probabilities.xgboost} label="XGBoost" color="bg-gradient-to-r from-blue-600 to-blue-400" />
             <ModelBar prob={p.model_probabilities.elo} label="ELO" color="bg-gradient-to-r from-cyan-600 to-cyan-400" />
-            <ModelBar prob={p.model_probabilities.bayesian} label="Bayesian" color="bg-gradient-to-r from-violet-600 to-violet-400" />
+            <ModelBar prob={p.model_probabilities.ensemble} label="Ensemble" color="bg-gradient-to-r from-violet-600 to-violet-400" />
+            <div className="pt-2 mt-2 border-t border-[#1e293b]">
+              <ModelBar prob={p.model_probabilities.ai_combined} label="AI 종합" color="bg-gradient-to-r from-orange-500 to-amber-400" />
+            </div>
           </div>
         </div>
 
