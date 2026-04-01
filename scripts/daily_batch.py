@@ -140,7 +140,7 @@ def step3_update_elo(completed: list[dict]):
 
     import numpy as np
     k = 20
-    home_adv = 30
+    home_adv = 20
 
     for game in completed:
         home = unify_team(game["home_team"])

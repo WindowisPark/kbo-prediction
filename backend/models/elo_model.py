@@ -16,7 +16,7 @@ class ELOPredictor(BasePredictor):
 
     name = "elo"
 
-    def __init__(self, k: int = 20, home_adv: float = 30, reversion: float = 0.3):
+    def __init__(self, k: int = 20, home_adv: float = 20, reversion: float = 0.3):
         self.k = k
         self.home_adv = home_adv
         self.reversion = reversion

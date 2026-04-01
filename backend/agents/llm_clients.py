@@ -19,6 +19,8 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent.parent / ".env", override=True)
 logger = logging.getLogger(__name__)
 
+from backend.utils.cost_tracker import log_cost
+
 
 class ClaudeClient:
     def __init__(self, model: str = "claude-sonnet-4-20250514", temperature: float = 0.4):
@@ -39,7 +41,7 @@ class ClaudeClient:
                     messages=[{"role": "user", "content": user_msg}],
                 )
                 usage = response.usage
-                logger.debug(f"Claude tokens: {usage.input_tokens}in + {usage.output_tokens}out")
+                log_cost(self.model, usage.input_tokens, usage.output_tokens, "claude")
                 return response.content[0].text
             except Exception as e:
                 if attempt < 2:
@@ -71,7 +73,7 @@ class GPTClient:
                     ],
                 )
                 usage = response.usage
-                logger.debug(f"GPT tokens: {usage.prompt_tokens}in + {usage.completion_tokens}out")
+                log_cost(self.model, usage.prompt_tokens, usage.completion_tokens, "gpt")
                 return response.choices[0].message.content
             except Exception as e:
                 if attempt < 2:

@@ -36,6 +36,7 @@ from backend.api.schemas import (
 )
 from backend.agents.predictor import GamePredictor
 from backend.scrapers.kbo_today import get_today_games, get_next_game_date, get_games_for_date
+from backend.utils.cost_tracker import get_daily_summary, get_monthly_summary
 from backend.scrapers.kbo_lineup import get_lineup
 from backend.utils.team_mapping import CURRENT_TEAMS, unify_team
 
@@ -276,6 +277,14 @@ async def update_result(index: int, actual_winner: str):
 async def get_teams():
     """현재 KBO 팀 목록."""
     return {"teams": CURRENT_TEAMS}
+
+
+@app.get("/costs")
+async def get_costs(date: str = ""):
+    """LLM API 비용 조회."""
+    daily = get_daily_summary(date)
+    monthly = get_monthly_summary()
+    return {"daily": daily, "monthly": monthly}
 
 
 @app.get("/today")

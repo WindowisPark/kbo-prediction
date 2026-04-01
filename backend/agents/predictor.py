@@ -62,7 +62,7 @@ class GamePredictor:
         logger.info("XGBoost trained")
 
         # ELO — 학습 후 일일배치에서 갱신된 레이팅이 있으면 덮어쓰기
-        self.elo = ELOPredictor(k=20, home_adv=30, reversion=0.3)
+        self.elo = ELOPredictor(k=20, home_adv=20, reversion=0.3)
         self.elo.fit(train, y_train)
         elo_file = ROOT / "data" / "elo_ratings.json"
         if elo_file.exists():
@@ -90,7 +90,7 @@ class GamePredictor:
             xgb_vp = self.xgb.predict_proba(valid)
             bay_vp = self.bay.predict_proba(valid)
             # ELO valid용 별도 인스턴스
-            elo_v = ELOPredictor(k=20, home_adv=30, reversion=0.3)
+            elo_v = ELOPredictor(k=20, home_adv=20, reversion=0.3)
             elo_v.fit(train, y_train)
             elo_vp = elo_v.predict_and_update(valid)
             meta_valid = np.column_stack([xgb_vp, elo_vp, bay_vp])

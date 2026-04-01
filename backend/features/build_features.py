@@ -170,7 +170,7 @@ def compute_head_to_head(games: pd.DataFrame, window: int = 10) -> pd.DataFrame:
     return games
 
 
-def compute_elo(games: pd.DataFrame, k: int = 20, home_adv: float = 30) -> pd.DataFrame:
+def compute_elo(games: pd.DataFrame, k: int = 20, home_adv: float = 20) -> pd.DataFrame:
     """ELO 레이팅 계산."""
     elo = {}
     elo_history_home = []
