@@ -15,9 +15,9 @@
 
 ## 높은 우선순위
 
-- [ ] 홈 선발투수 개인 스탯 피처 추가
+- [x] 홈 선발투수 개인 스탯 피처 추가 (v4: +2%p 향상)
 - [ ] 실시간 시즌 누적 스탯 반영 (전년도 → 올시즌)
-- [ ] Stacking 앙상블 (LogisticRegression 메타 러너)
+- [x] Stacking 앙상블 (LogisticRegression 메타 러너: 61.6%)
 - [ ] 배포 (Vercel + Railway)
 - [ ] API 인증 + Rate Limiting
 - [ ] CORS 도메인 제한
