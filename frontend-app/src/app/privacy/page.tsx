@@ -55,7 +55,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-bold text-white mb-3">8. 개인정보 보호책임자</h2>
           <p>개인정보 관련 문의사항은 아래로 연락해 주세요.</p>
-          <p className="mt-1 text-white">이메일: privacy@kbo-analyzer.com</p>
+          <p className="mt-1 text-white">이메일: josechang5744@gmail.com</p>
         </section>
 
         <p className="text-xs text-[#475569] pt-4 border-t border-[#1e293b]">
