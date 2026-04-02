@@ -38,6 +38,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from backend.scrapers.kbo_today import get_today_games, get_game_list
+from backend.scrapers.kbo_pregame_lineup import get_pregame_lineup, format_lineup_context
 from backend.utils.team_mapping import unify_team
 from backend.agents.predictor import GamePredictor
 from backend.auth.database import init_db, SessionLocal
@@ -124,12 +125,17 @@ def run_prediction(predictor: GamePredictor, game: dict, phase: int, db) -> bool
     away_sp = game.get("away_starter", "")
 
     if phase == 2:
-        extra_context += "\n- 분석 시점: 라인업 공개 후 (경기 1시간 전)"
-        # TODO: 라인업 수집 기능 연동
-        # lineup = get_pre_game_lineup(game["game_id"])
-        # if lineup:
-        #     extra_context += f"\n- 홈 라인업: {lineup['home']}"
-        #     extra_context += f"\n- 원정 라인업: {lineup['away']}"
+        # 확정 라인업 수집
+        game_id = game.get("game_id", "")
+        if game_id:
+            lineup = get_pregame_lineup(game_id)
+            if lineup and lineup.get("available"):
+                lineup_ctx = format_lineup_context(lineup)
+                extra_context += lineup_ctx
+                logger.info(f"    Lineup loaded: {len(lineup.get('home_lineup', []))} + {len(lineup.get('away_lineup', []))} players")
+            else:
+                extra_context += "\n- 분석 시점: 라인업 미공개 (선발투수 기반)"
+                logger.info(f"    Lineup not yet available")
 
     logger.info(f"  Predicting: {away} @ {home} [{game.get('time', '?')}] (phase {phase})")
 

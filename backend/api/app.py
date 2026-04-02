@@ -49,6 +49,7 @@ from backend.auth.models import PreComputedPrediction
 from backend.auth.tier_filter import filter_prediction_response, filter_accuracy_response
 from backend.agents.predictor import GamePredictor
 from backend.scrapers.kbo_today import get_today_games, get_next_game_date, get_games_for_date
+from backend.scrapers.kbo_pregame_lineup import get_pregame_lineup
 from backend.utils.cost_tracker import get_daily_summary, get_monthly_summary
 from backend.utils.cache import get_cached, set_cached
 from backend.scrapers.kbo_lineup import get_lineup
@@ -519,15 +520,22 @@ async def get_schedule(date: str):
 
 @app.get("/game/{game_id}/lineup")
 async def game_lineup(game_id: str):
-    """경기 라인업 조회."""
+    """경기 라인업 조회 — 경기 전이면 pregame API, 경기 후면 boxscore."""
     try:
+        # 1차: 경기 전 확정 라인업 시도
+        pregame = get_pregame_lineup(game_id)
+        if pregame and pregame.get("available"):
+            return {"game_id": game_id, "available": True, "source": "pregame", **pregame}
+
+        # 2차: 박스스코어 라인업 (경기 후)
         result = get_lineup(game_id)
-        if not result or (not result.get("away_lineup") and not result.get("home_lineup")):
-            return {
-                "game_id": game_id,
-                "available": False,
-                "message": "경기 종료 후 라인업이 공개됩니다 (진행 중/예정 경기는 미지원)",
-            }
-        return {"game_id": game_id, "available": True, **result}
+        if result and (result.get("away_lineup") or result.get("home_lineup")):
+            return {"game_id": game_id, "available": True, "source": "boxscore", **result}
+
+        return {
+            "game_id": game_id,
+            "available": False,
+            "message": "라인업이 아직 공개되지 않았습니다",
+        }
     except Exception as e:
         raise HTTPException(500, str(e))
