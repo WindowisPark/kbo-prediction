@@ -487,6 +487,7 @@ function TodayGameCard({ game, onSelect, onLineup, onPredict }: {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [error, setError] = useState("");
 
@@ -649,14 +650,48 @@ export default function Dashboard() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">
       {/* 히어로 */}
-      <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mb-2">
-          KBO <span className="gradient-text">AI Analyzer</span>
-        </h1>
-        <p className="text-[#64748b] text-sm sm:text-lg">
-          독자적 AI 분석 엔진 기반 경기 분석
-        </p>
-      </div>
+      {!user ? (
+        <div className="mb-10 relative overflow-hidden rounded-2xl border border-[#1e293b] bg-gradient-to-br from-[#0d1117] via-[#111827] to-[#0d1117]">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(37,99,235,0.12),transparent_60%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(6,182,212,0.08),transparent_60%)]" />
+          <div className="relative px-8 py-10 sm:py-14">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-3">
+              KBO <span className="gradient-text">AI Analyzer</span>
+            </h1>
+            <p className="text-[#94a3b8] text-base sm:text-lg max-w-xl mb-6">
+              독자적 AI 분석 엔진이 매일 경기를 다각도로 분석합니다
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="/login"
+                className="px-6 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold hover:from-blue-500 hover:to-cyan-400 transition-all text-sm"
+              >
+                무료로 시작하기
+              </a>
+              <a
+                href="/login"
+                className="px-6 py-3 rounded-lg border border-[#334155] text-[#94a3b8] hover:text-white hover:border-[#475569] transition-all text-sm"
+              >
+                로그인
+              </a>
+            </div>
+            <div className="flex gap-6 mt-6 text-xs text-[#475569]">
+              <span>&#10003; 매일 무료 1회 분석</span>
+              <span>&#10003; 가입 10초</span>
+              <span>&#10003; 카드 등록 불필요</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mb-2">
+            KBO <span className="gradient-text">AI Analyzer</span>
+          </h1>
+          <p className="text-[#64748b] text-sm sm:text-lg">
+            독자적 AI 분석 엔진 기반 경기 분석
+          </p>
+        </div>
+      )}
 
       {/* 경기 일정 */}
       <div className="mb-10">
