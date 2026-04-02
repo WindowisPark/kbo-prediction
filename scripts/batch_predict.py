@@ -38,7 +38,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from backend.scrapers.kbo_today import get_today_games, get_game_list
-from backend.scrapers.kbo_pregame_lineup import get_pregame_lineup, format_lineup_context
+from backend.scrapers.kbo_pregame_lineup import (
+    get_pregame_lineup, format_lineup_context,
+    get_expected_lineup, format_expected_lineup_context,
+)
 from backend.utils.team_mapping import unify_team
 from backend.agents.predictor import GamePredictor
 from backend.auth.database import init_db, SessionLocal
@@ -124,7 +127,15 @@ def run_prediction(predictor: GamePredictor, game: dict, phase: int, db) -> bool
     home_sp = game.get("home_starter", "")
     away_sp = game.get("away_starter", "")
 
-    if phase == 2:
+    if phase == 1:
+        # 예상 라인업 (최근 경기 패턴 기반)
+        for team_raw, team_unified in [(game["home_team"], home), (game["away_team"], away)]:
+            expected = get_expected_lineup(team_raw, num_games=5)
+            if expected and expected.get("lineup"):
+                extra_context += format_expected_lineup_context(team_unified, expected)
+                logger.info(f"    Expected lineup for {team_unified}: {expected['games_used']} games used")
+
+    elif phase == 2:
         # 확정 라인업 수집
         game_id = game.get("game_id", "")
         if game_id:

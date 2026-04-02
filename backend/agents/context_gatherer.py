@@ -31,11 +31,11 @@ def gather_context_from_data(
     if features_df is not None and not features_df.empty:
         import pandas as pd
 
-        # 최근 5경기 결과
+        # 최근 10경기 결과 (시즌 초에는 가용 경기만)
         for team, label in [(home_team, "홈"), (away_team, "원정")]:
             team_games = features_df[
                 ((features_df["home_team"] == team) | (features_df["away_team"] == team))
-            ].tail(5)
+            ].tail(10)
 
             if not team_games.empty:
                 results = []
@@ -46,7 +46,8 @@ def gather_context_from_data(
                     score = f"{g['home_score']}-{g['away_score']}" if is_home else f"{g['away_score']}-{g['home_score']}"
                     results.append(f"{'W' if won else 'L'} vs {opp} ({score})")
 
-                lines.append(f"\n### {team} ({label}팀) 최근 5경기")
+                n = len(results)
+                lines.append(f"\n### {team} ({label}팀) 최근 {n}경기")
                 for r in results:
                     lines.append(f"  - {r}")
 
