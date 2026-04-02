@@ -41,6 +41,7 @@ from backend.api.schemas import (
 from backend.api.deps import get_user_tier
 from backend.api.routes.auth import router as auth_router
 from backend.api.routes.admin import router as admin_router
+from backend.api.routes.payments import router as payments_router
 from backend.api.middleware.security_headers import SecurityHeadersMiddleware
 from backend.api.middleware.rate_limiter import RateLimiterMiddleware
 from backend.auth.database import init_db, SessionLocal
@@ -149,6 +150,7 @@ app = FastAPI(
 # --- 라우터 등록 ---
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(payments_router)
 
 # --- 미들웨어 체인 (역순 등록: 마지막 등록 = 가장 바깥) ---
 

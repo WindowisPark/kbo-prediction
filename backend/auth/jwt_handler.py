@@ -10,12 +10,13 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 
-def create_access_token(user_id: int, email: str, tier: str) -> str:
+def create_access_token(user_id: int, email: str, tier: str, is_verified: bool = False) -> str:
     payload = {
         "sub": str(user_id),
         "user_id": user_id,
         "email": email,
         "tier": tier,
+        "is_verified": is_verified,
         "type": "access",
         "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
         "iat": datetime.now(timezone.utc),

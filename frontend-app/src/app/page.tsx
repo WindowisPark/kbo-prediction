@@ -693,6 +693,25 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* 미인증 배너 */}
+      {user && !user.isVerified && (
+        <div className="mb-6 px-5 py-4 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-amber-400 text-lg">&#9993;</span>
+            <div>
+              <p className="text-sm text-amber-300 font-medium">이메일 인증이 필요합니다</p>
+              <p className="text-xs text-[#64748b]">분석 기능을 이용하려면 이메일을 인증해 주세요</p>
+            </div>
+          </div>
+          <a
+            href="/verify"
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition"
+          >
+            인증하기
+          </a>
+        </div>
+      )}
+
       {/* 경기 일정 */}
       <div className="mb-10">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">

@@ -1,7 +1,9 @@
 "use client";
 
 import { useAuth } from "@/components/AuthProvider";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { getAccessToken } from "@/lib/auth";
+import { API_URL } from "@/lib/config";
 
 const TIERS = [
   {
@@ -159,8 +161,26 @@ export default function MyPage() {
 
               {!isCurrent && tier.id !== "free" && (
                 <button
-                  className={`w-full mt-4 py-2.5 rounded-lg text-sm font-medium bg-gradient-to-r ${tier.color} text-white hover:opacity-90 transition`}
-                  onClick={() => alert("결제 시스템 준비 중입니다")}
+                  className={`w-full mt-4 py-2.5 rounded-lg text-sm font-medium bg-gradient-to-r ${tier.color} text-white hover:opacity-90 transition disabled:opacity-50`}
+                  onClick={async () => {
+                    const token = getAccessToken();
+                    if (!token) { window.location.href = "/login"; return; }
+                    try {
+                      const res = await fetch(`${API_URL}/payments/create-checkout`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ tier: tier.id }),
+                      });
+                      const data = await res.json();
+                      if (data.checkout_url) {
+                        window.location.href = data.checkout_url;
+                      } else {
+                        alert(data.detail || "결제 시스템 준비 중입니다");
+                      }
+                    } catch {
+                      alert("결제 시스템 준비 중입니다");
+                    }
+                  }}
                 >
                   업그레이드
                 </button>

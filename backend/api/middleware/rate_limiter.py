@@ -34,10 +34,11 @@ PREDICT_PATHS = {"/predict", "/predict/batch", "/today/predict"}
 _predict_counters: dict[str, dict] = defaultdict(lambda: {"timestamps": [], "day_start": 0.0})
 
 
-def _get_identity_and_tier(request: Request) -> tuple[str, str]:
-    """요청에서 사용자 ID와 티어를 추출."""
+def _get_identity_tier_verified(request: Request) -> tuple[str, str, bool]:
+    """요청에서 사용자 ID, 티어, 인증 여부를 추출."""
     identity = request.client.host if request.client else "unknown"
     tier = "free"
+    is_verified = False
 
     auth_header = request.headers.get("authorization", "")
     if auth_header.startswith("Bearer "):
@@ -46,10 +47,11 @@ def _get_identity_and_tier(request: Request) -> tuple[str, str]:
             payload = verify_token(token, expected_type="access")
             identity = f"user:{payload['sub']}"
             tier = payload.get("tier", "free")
+            is_verified = payload.get("is_verified", False)
         except JWTError:
             pass
 
-    return identity, tier
+    return identity, tier, is_verified
 
 
 def reset_counters():
@@ -65,7 +67,14 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         if path not in PREDICT_PATHS or request.method != "POST":
             return await call_next(request)
 
-        identity, tier = _get_identity_and_tier(request)
+        identity, tier, is_verified = _get_identity_tier_verified(request)
+
+        # 미인증 사용자 분석 차단
+        if identity.startswith("user:") and not is_verified:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "이메일 인증이 필요합니다", "code": "email_not_verified"},
+            )
         limit = PREDICT_DAILY_LIMITS.get(tier, PREDICT_DAILY_LIMITS["free"])
 
         now = time.time()

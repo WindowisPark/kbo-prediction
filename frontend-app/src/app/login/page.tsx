@@ -31,7 +31,8 @@ export default function LoginPage() {
     }
 
     refresh();
-    window.location.href = "/";
+    // 회원가입이면 인증 페이지로, 로그인이면 대시보드로
+    window.location.href = mode === "register" ? "/verify" : "/";
   };
 
   return (

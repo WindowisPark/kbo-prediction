@@ -34,6 +34,7 @@ export interface JWTPayload {
   user_id: number;
   email: string;
   tier: "free" | "basic" | "pro";
+  is_verified: boolean;
   type: string;
   exp: number;
 }
@@ -140,6 +141,7 @@ export interface UserInfo {
   email: string;
   tier: "free" | "basic" | "pro";
   userId: number;
+  isVerified: boolean;
 }
 
 export function getCurrentUser(): UserInfo | null {
@@ -158,5 +160,55 @@ export function getCurrentUser(): UserInfo | null {
     email: payload.email,
     tier: payload.tier,
     userId: payload.user_id,
+    isVerified: payload.is_verified ?? false,
   };
+}
+
+// --- 이메일 인증 ---
+
+export async function verifyEmail(
+  code: string
+): Promise<{ success: boolean; error?: string }> {
+  const token = getAccessToken();
+  if (!token) return { success: false, error: "로그인이 필요합니다" };
+
+  try {
+    const res = await fetch(`${API_URL}/auth/verify-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ code }),
+    });
+    const json = await res.json();
+    if (!res.ok) return { success: false, error: json.detail || "인증 실패" };
+
+    // 새 토큰으로 갱신
+    if (json.access_token) {
+      setTokens(json.access_token, json.refresh_token);
+    }
+    return { success: true };
+  } catch {
+    return { success: false, error: "서버에 연결할 수 없습니다" };
+  }
+}
+
+export async function resendCode(): Promise<{ success: boolean; error?: string }> {
+  const token = getAccessToken();
+  if (!token) return { success: false, error: "로그인이 필요합니다" };
+
+  try {
+    const res = await fetch(`${API_URL}/auth/resend-code`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const json = await res.json();
+      return { success: false, error: json.detail || "발송 실패" };
+    }
+    return { success: true };
+  } catch {
+    return { success: false, error: "서버에 연결할 수 없습니다" };
+  }
 }
