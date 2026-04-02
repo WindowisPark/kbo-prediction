@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { TEAMS as TEAM_MAP, getTeam, type TeamMeta } from "@/lib/teams";
 import { API_URL } from "@/lib/config";
+import { useAuth } from "@/components/AuthProvider";
+import { TierGate, BlurredValue } from "@/components/TierGate";
 
 const TEAM_IDS = ["KIA","KT","LG","NC","SSG","두산","롯데","삼성","Heroes","한화"];
 
@@ -16,10 +18,11 @@ interface DebateEntry {
 }
 interface Prediction {
   home_team: string; away_team: string;
-  predicted_winner: string; home_win_probability: number;
-  confidence: string; key_factors: string[]; reasoning: string;
-  model_probabilities: { xgboost: number; elo: number; ensemble: number; ai_combined: number };
-  debate_log: DebateEntry[];
+  predicted_winner: string; home_win_probability: number | null;
+  confidence: string; key_factors: string[]; reasoning: string | null;
+  model_probabilities: { xgboost: number; elo: number; ensemble: number; ai_combined: number } | null;
+  debate_log: DebateEntry[] | null;
+  tier?: "free" | "basic" | "pro";
 }
 
 function PredictingIndicator() {
@@ -136,10 +139,13 @@ function DebateTimeline({ log }: { log: DebateEntry[] }) {
 }
 
 function PredictionResult({ p }: { p: Prediction }) {
+  const { user } = useAuth();
+  const tier = p.tier || user?.tier || "free";
   const homeProb = p.home_win_probability;
-  const awayProb = 1 - homeProb;
+  const awayProb = homeProb != null ? 1 - homeProb : null;
   const isHomeWin = p.predicted_winner === p.home_team;
   const winnerMeta = TEAM_META[p.predicted_winner] || { name: p.predicted_winner, color: "#2563eb", short: p.predicted_winner };
+  const probHidden = homeProb == null;
 
   return (
     <div className="space-y-6">
@@ -156,7 +162,9 @@ function PredictionResult({ p }: { p: Prediction }) {
                      className="mx-auto mb-3 drop-shadow-lg" />
               <div className="text-xl font-bold">{TEAM_META[p.away_team]?.name || p.away_team}</div>
               <div className="text-xs text-[#64748b] mt-1">AWAY</div>
-              <div className="text-3xl font-black font-mono mt-2 gradient-text-orange">{Math.round(awayProb * 100)}%</div>
+              <div className="text-3xl font-black font-mono mt-2 gradient-text-orange">
+                <BlurredValue value={awayProb != null ? `${Math.round(awayProb * 100)}%` : "??"} blurred={probHidden} placeholder="52%" />
+              </div>
             </div>
 
             <div className="px-6 flex flex-col items-center gap-2">
@@ -169,7 +177,9 @@ function PredictionResult({ p }: { p: Prediction }) {
                      className="mx-auto mb-3 drop-shadow-lg" />
               <div className="text-xl font-bold">{TEAM_META[p.home_team]?.name || p.home_team}</div>
               <div className="text-xs text-[#64748b] mt-1">HOME</div>
-              <div className="text-3xl font-black font-mono mt-2 gradient-text">{Math.round(homeProb * 100)}%</div>
+              <div className="text-3xl font-black font-mono mt-2 gradient-text">
+                <BlurredValue value={homeProb != null ? `${Math.round(homeProb * 100)}%` : "??"} blurred={probHidden} placeholder="48%" />
+              </div>
             </div>
           </div>
 
@@ -191,37 +201,68 @@ function PredictionResult({ p }: { p: Prediction }) {
         {/* ML 모델 출력 */}
         <div className="bg-[#111827] rounded-xl border border-[#1e293b] p-5">
           <div className="text-xs font-semibold text-[#64748b] uppercase tracking-wider mb-4">ML Models (Home Win %)</div>
-          <div className="space-y-3">
-            <ModelBar prob={p.model_probabilities.xgboost} label="XGBoost" color="bg-gradient-to-r from-blue-600 to-blue-400" />
-            <ModelBar prob={p.model_probabilities.elo} label="ELO" color="bg-gradient-to-r from-cyan-600 to-cyan-400" />
-            <ModelBar prob={p.model_probabilities.ensemble} label="Ensemble" color="bg-gradient-to-r from-violet-600 to-violet-400" />
-            <div className="pt-2 mt-2 border-t border-[#1e293b]">
-              <ModelBar prob={p.model_probabilities.ai_combined} label="AI 종합" color="bg-gradient-to-r from-orange-500 to-amber-400" />
+          <TierGate tier={tier as "free"|"basic"|"pro"} requiredTier="pro" placeholder={
+            <div className="space-y-3">
+              <ModelBar prob={0.55} label="XGBoost" color="bg-gradient-to-r from-blue-600 to-blue-400" />
+              <ModelBar prob={0.48} label="ELO" color="bg-gradient-to-r from-cyan-600 to-cyan-400" />
+              <ModelBar prob={0.52} label="Ensemble" color="bg-gradient-to-r from-violet-600 to-violet-400" />
             </div>
-          </div>
+          }>
+            {p.model_probabilities ? (
+              <div className="space-y-3">
+                <ModelBar prob={p.model_probabilities.xgboost} label="XGBoost" color="bg-gradient-to-r from-blue-600 to-blue-400" />
+                <ModelBar prob={p.model_probabilities.elo} label="ELO" color="bg-gradient-to-r from-cyan-600 to-cyan-400" />
+                <ModelBar prob={p.model_probabilities.ensemble} label="Ensemble" color="bg-gradient-to-r from-violet-600 to-violet-400" />
+                <div className="pt-2 mt-2 border-t border-[#1e293b]">
+                  <ModelBar prob={p.model_probabilities.ai_combined} label="AI 종합" color="bg-gradient-to-r from-orange-500 to-amber-400" />
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-[#475569]">Pro 플랜에서 확인 가능</div>
+            )}
+          </TierGate>
         </div>
 
         {/* 핵심 요인 */}
         <div className="bg-[#111827] rounded-xl border border-[#1e293b] p-5">
           <div className="text-xs font-semibold text-[#64748b] uppercase tracking-wider mb-4">Key Factors</div>
           <div className="space-y-2">
-            {p.key_factors.map((f, i) => (
+            {(p.key_factors || []).map((f, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className="w-1 h-1 rounded-full bg-orange-500" />
                 <span className="text-sm text-[#94a3b8]">{f}</span>
               </div>
             ))}
           </div>
-          <div className="mt-4 pt-4 border-t border-[#1e293b]">
-            <p className="text-sm text-[#64748b] leading-relaxed">{p.reasoning}</p>
-          </div>
+          {p.reasoning != null && (
+            <div className="mt-4 pt-4 border-t border-[#1e293b]">
+              <p className="text-sm text-[#64748b] leading-relaxed">
+                {p.reasoning}
+                {p.reasoning && p.reasoning.endsWith("...") && (
+                  <a href="/mypage" className="ml-1 text-cyan-400 hover:text-cyan-300 text-xs">
+                    전문 보기 →
+                  </a>
+                )}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* 토론 과정 */}
-      <div className="bg-[#111827] rounded-xl border border-[#1e293b] p-5">
-        <DebateTimeline log={p.debate_log} />
-      </div>
+      {p.debate_log && p.debate_log.length > 0 ? (
+        <div className="bg-[#111827] rounded-xl border border-[#1e293b] p-5">
+          <DebateTimeline log={p.debate_log} />
+        </div>
+      ) : (
+        <TierGate tier={tier as "free"|"basic"|"pro"} requiredTier="pro" placeholder={
+          <div className="bg-[#111827] rounded-xl border border-[#1e293b] p-5">
+            <div className="text-sm text-[#64748b]">에이전트 토론 과정 (3 agents, 2 rounds)</div>
+          </div>
+        }>
+          <div />
+        </TierGate>
+      )}
     </div>
   );
 }
@@ -396,13 +437,15 @@ function TodayGameCard({ game, onSelect, onLineup, onPredict }: {
               {TEAM_META[pred.predicted_winner]?.short || pred.predicted_winner}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-16 h-1.5 bg-[#1e293b] rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full"
-                   style={{ width: `${Math.round(pred.home_win_probability * 100)}%` }} />
+          {pred.home_win_probability != null && (
+            <div className="flex items-center gap-2">
+              <div className="w-16 h-1.5 bg-[#1e293b] rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full"
+                     style={{ width: `${Math.round(pred.home_win_probability * 100)}%` }} />
+              </div>
+              <span className="text-xs font-mono text-[#94a3b8]">{Math.round(pred.home_win_probability * 100)}%</span>
             </div>
-            <span className="text-xs font-mono text-[#94a3b8]">{Math.round(pred.home_win_probability * 100)}%</span>
-          </div>
+          )}
         </div>
       )}
       {game.error && (

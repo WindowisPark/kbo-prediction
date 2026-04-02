@@ -1,3 +1,5 @@
+import { getAccessToken } from "./auth";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface TeamInfo {
@@ -27,12 +29,13 @@ export interface Prediction {
   away_team: string;
   date: string;
   predicted_winner: string;
-  home_win_probability: number;
+  home_win_probability: number | null;
   confidence: string;
   key_factors: string[];
-  reasoning: string;
-  model_probabilities: ModelProbabilities;
-  debate_log: DebateEntry[];
+  reasoning: string | null;
+  model_probabilities: ModelProbabilities | null;
+  debate_log: DebateEntry[] | null;
+  tier?: "free" | "basic" | "pro";
 }
 
 export interface StandingsData {
@@ -41,9 +44,22 @@ export interface StandingsData {
 }
 
 async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...Object.fromEntries(
+      Object.entries(options?.headers || {})
+    ),
+  };
+
+  // JWT 토큰이 있으면 Authorization 헤더 추가
+  const token = getAccessToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: { "Content-Type": "application/json", ...options?.headers },
+    headers,
   });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
