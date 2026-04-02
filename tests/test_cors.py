@@ -22,6 +22,7 @@ from backend.api.app import app
 ALLOWED_ORIGINS = [
     "https://kbo-prediction-lilac.vercel.app",
     "http://localhost:3000",
+    "https://kbo-prediction-9ervrlxwj-park-changhees-projects.vercel.app",  # Vercel 프리뷰
 ]
 
 DISALLOWED_ORIGINS = [

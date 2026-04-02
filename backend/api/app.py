@@ -167,9 +167,16 @@ CORS_ORIGINS = [
     ).split(",")
 ]
 
+# Vercel 프리뷰 도메인 (*.vercel.app) 허용
+CORS_ORIGIN_REGEX = os.getenv(
+    "CORS_ORIGIN_REGEX",
+    r"https://kbo-prediction[a-z0-9\-]*\.vercel\.app"
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
