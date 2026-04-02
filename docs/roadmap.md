@@ -25,33 +25,40 @@
   - Frontend: kbo-prediction-lilac.vercel.app (Vercel)
   - Backend: kbo-prediction-production.up.railway.app (Railway)
   - Daily Batch: GitHub Actions (KST 00:00 cron)
+- [x] CORS 배포 도메인 제한 (Vercel + localhost + 프리뷰 regex)
+- [x] 계정 시스템 (JWT 인증, SQLite, 보안 헤더, 81개 테스트)
+- [x] 이메일 인증 (Resend API, 6자리 코드, 미인증 시 /predict 차단)
+- [x] 티어별 콘텐츠 접근 제어 (API + 프론트엔드)
+  - Free: 승리팀만 (확률 숨김), 요인 1줄, 1회/일
+  - Basic: 확률 + 요인 3줄 + reasoning 200자, 5회/일
+  - Pro: 전체 + ML 상세 + 토론 + 무제한 + 재분석
+- [x] 프론트엔드 auth UI (로그인/회원가입/마이페이지/인증)
+- [x] 티어별 UI (블러, 잠금, 업그레이드 CTA, 히어로 배너)
+- [x] Stripe 결제 연동 (Checkout Session, Webhook, 자동 티어 변경)
+- [x] 경기 전 라인업 수집 (GetLineUpAnalysis API)
+- [x] 예상 라인업 추론 (최근 경기 빈도 기반)
+- [x] 2단계 배치 파이프라인 (경기 시간 기준 동적 스케줄링)
+  - Phase 1: 4시간 전 — 선발투수 + 예상 라인업
+  - Phase 2: 1시간 전 — 확정 라인업 반영
+  - Fallback: 누락 자동 보충
+- [x] 최근 경기 맥락 10경기로 확장 (시즌 초 가용 수 기준)
 
-## Phase 1: 수익화 기반 (높은 우선순위)
+## Phase 1: 수익화 잔여
 
-- [x] CORS 배포 도메인만 허용 (Vercel + localhost:3000)
-- [x] 계정 시스템
-  - JWT 인증 (회원가입/로그인/토큰 갱신)
-  - 사용자 DB (SQLite → 추후 PostgreSQL 전환)
-  - per-user Rate Limiting (Free 10/hr, Basic 50/hr, Pro 200/hr)
-  - 보안 헤더 미들웨어 (CSP, HSTS, X-Frame-Options 등)
-  - 보안 테스트 67개 전체 통과
-- [x] 프리미엄 콘텐츠 접근 제어 (API 레벨)
-  - Free / Basic / Pro 티어별 응답 필터링
-- [ ] 구독 + 결제 MVP (monetization.md Phase 1)
-  - 토스페이먼츠 단건 월간 결제
-  - 이용약관/개인정보처리방침 업데이트
+- [ ] Stripe 환경변수 설정 + 실결제 테스트
+- [ ] Resend 환경변수 설정 + 이메일 발송 테스트
+- [ ] 이용약관/개인정보처리방침 결제 관련 업데이트
 - [ ] 4월 적중률 검증 (130경기+, 목표 55%+) — 병행 진행
 
 ## Phase 2: 구독 고도화 (중간 우선순위)
 
-- [ ] 정기결제 (빌링키 + 자동갱신/해지 UI) (monetization.md Phase 2)
-- [ ] 구독 관리 대시보드 (마이페이지)
-- [ ] 경기 전 라인업 수집 (KBO 사이트 구조상 제한 — ASP.NET UpdatePanel)
+- [ ] 토스페이먼츠 연동 (사업자 등록 후)
+- [ ] 구독 관리 (자동갱신/해지 UI)
 - [ ] SSE 스트리밍 (분석 진행 실시간)
 
 ## Phase 3: 성장 (낮은 우선순위)
 
-- [ ] 쿠폰/프로모션 시스템 (monetization.md Phase 3)
+- [ ] 쿠폰/프로모션 시스템
 - [ ] 카카오 알림톡 연동
 - [ ] 웹 검색 API 연동 (Tavily/SerpAPI)
 - [ ] PostgreSQL 전환 (사용자 증가 시)
