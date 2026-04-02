@@ -142,10 +142,11 @@ function PredictionResult({ p }: { p: Prediction }) {
   const { user } = useAuth();
   const tier = p.tier || user?.tier || "free";
   const homeProb = p.home_win_probability;
-  const awayProb = homeProb != null ? 1 - homeProb : null;
   const isHomeWin = p.predicted_winner === p.home_team;
   const winnerMeta = TEAM_META[p.predicted_winner] || { name: p.predicted_winner, color: "#2563eb", short: p.predicted_winner };
   const probHidden = homeProb == null;
+  // 우세 확률: predicted_winner 기준으로 항상 50%+
+  const winnerProb = homeProb != null ? (isHomeWin ? homeProb : 1 - homeProb) : null;
 
   return (
     <div className="space-y-6">
@@ -162,9 +163,6 @@ function PredictionResult({ p }: { p: Prediction }) {
                      className="mx-auto mb-3 drop-shadow-lg" />
               <div className="text-xl font-bold">{TEAM_META[p.away_team]?.name || p.away_team}</div>
               <div className="text-xs text-[#64748b] mt-1">AWAY</div>
-              <div className="text-3xl font-black font-mono mt-2 gradient-text-orange">
-                <BlurredValue value={awayProb != null ? `${Math.round(awayProb * 100)}%` : "??"} blurred={probHidden} placeholder="52%" />
-              </div>
             </div>
 
             <div className="px-6 flex flex-col items-center gap-2">
@@ -177,9 +175,6 @@ function PredictionResult({ p }: { p: Prediction }) {
                      className="mx-auto mb-3 drop-shadow-lg" />
               <div className="text-xl font-bold">{TEAM_META[p.home_team]?.name || p.home_team}</div>
               <div className="text-xs text-[#64748b] mt-1">HOME</div>
-              <div className="text-3xl font-black font-mono mt-2 gradient-text">
-                <BlurredValue value={homeProb != null ? `${Math.round(homeProb * 100)}%` : "??"} blurred={probHidden} placeholder="48%" />
-              </div>
             </div>
           </div>
 
@@ -188,7 +183,22 @@ function PredictionResult({ p }: { p: Prediction }) {
             <div className="text-sm text-[#64748b] mb-1">AI 분석 결과</div>
             <div className="text-2xl font-black" style={{ color: winnerMeta.color }}>
               {winnerMeta.name}
+              {!probHidden && winnerProb != null && (
+                <span className="ml-2">
+                  <BlurredValue
+                    value={`${Math.round(winnerProb * 100)}%`}
+                    blurred={false}
+                    placeholder="60%"
+                  />
+                </span>
+              )}
+              {probHidden && (
+                <span className="ml-2 text-lg">
+                  <BlurredValue value="60%" blurred={true} placeholder="60%" />
+                </span>
+              )}
             </div>
+            <div className="text-xs text-[#64748b] mt-1">우세</div>
             <div className="mt-2">
               <ConfBadge confidence={p.confidence} />
             </div>
@@ -601,9 +611,13 @@ export default function Dashboard() {
         game.stadium ? `- 구장: ${game.stadium}` : "",
       ].filter(Boolean).join("\n");
 
+      const authHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      const token = typeof window !== "undefined" ? localStorage.getItem("kbo_access_token") : null;
+      if (token) authHeaders["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(`${API_URL}/predict`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
         body: JSON.stringify({
           home_team: game.home_team,
           away_team: game.away_team,
