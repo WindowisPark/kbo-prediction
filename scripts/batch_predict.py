@@ -217,11 +217,68 @@ def run_auto(target_date: str | None = None):
     phase1_games = batch_games[1]
     phase2_games = batch_games[2]
 
-    if not phase1_games and not phase2_games:
-        logger.info("No games in batch window — skipping")
+    # 누락 보충: 경기 시작 전인데 아직 배치 결과가 없는 경기
+    upcoming = [g for g in games if g["status"] not in ("final", "cancelled")]
+    missing_phase1 = []
+    missing_phase2 = []
+
+    if upcoming:
+        init_db()
+        db = SessionLocal()
+        try:
+            for game in upcoming:
+                home = unify_team(game["home_team"])
+                away = unify_team(game["away_team"])
+                game_date = game["date"].replace("-", "")
+                game_time = parse_game_time(game)
+
+                if game_time and game_time > now:
+                    # Phase 1 누락 체크 — 경기 시작 전이면 보충
+                    p1 = db.query(PreComputedPrediction).filter(
+                        PreComputedPrediction.game_date == game_date,
+                        PreComputedPrediction.home_team == home,
+                        PreComputedPrediction.away_team == away,
+                        PreComputedPrediction.batch_phase == 1,
+                    ).first()
+                    if not p1:
+                        missing_phase1.append(game)
+
+                    # Phase 2 누락 체크 — 경기 2시간 전 이내이면 보충
+                    minutes_until = (game_time - now).total_seconds() / 60
+                    if minutes_until <= 120:
+                        p2 = db.query(PreComputedPrediction).filter(
+                            PreComputedPrediction.game_date == game_date,
+                            PreComputedPrediction.home_team == home,
+                            PreComputedPrediction.away_team == away,
+                            PreComputedPrediction.batch_phase == 2,
+                        ).first()
+                        if not p2:
+                            missing_phase2.append(game)
+        finally:
+            db.close()
+
+    # 윈도우 + 누락 합산 (중복 제거)
+    seen_ids = set()
+    all_phase1 = []
+    for g in phase1_games + missing_phase1:
+        gid = g.get("game_id", "")
+        if gid not in seen_ids:
+            seen_ids.add(gid)
+            all_phase1.append(g)
+
+    seen_ids = set()
+    all_phase2 = []
+    for g in phase2_games + missing_phase2:
+        gid = g.get("game_id", "")
+        if gid not in seen_ids:
+            seen_ids.add(gid)
+            all_phase2.append(g)
+
+    if not all_phase1 and not all_phase2:
+        logger.info("No games in batch window and no missing predictions — skipping")
         return
 
-    # 모델 로드 (배치 대상이 있을 때만)
+    # 모델 로드
     init_db()
     logger.info("Loading models...")
     predictor = GamePredictor(debate_rounds=2)
@@ -230,14 +287,20 @@ def run_auto(target_date: str | None = None):
 
     db = SessionLocal()
     try:
-        if phase1_games:
-            logger.info(f"\n--- Phase 1: 선발투수 기반 ({len(phase1_games)}경기) ---")
-            for game in phase1_games:
+        if all_phase1:
+            n_window = len(phase1_games)
+            n_missing = len(all_phase1) - n_window
+            label = f"Phase 1: 선발투수 기반 ({n_window} window + {n_missing} fallback)"
+            logger.info(f"\n--- {label} ---")
+            for game in all_phase1:
                 run_prediction(predictor, game, phase=1, db=db)
 
-        if phase2_games:
-            logger.info(f"\n--- Phase 2: 라인업 반영 ({len(phase2_games)}경기) ---")
-            for game in phase2_games:
+        if all_phase2:
+            n_window = len(phase2_games)
+            n_missing = len(all_phase2) - n_window
+            label = f"Phase 2: 라인업 반영 ({n_window} window + {n_missing} fallback)"
+            logger.info(f"\n--- {label} ---")
+            for game in all_phase2:
                 run_prediction(predictor, game, phase=2, db=db)
     finally:
         db.close()
