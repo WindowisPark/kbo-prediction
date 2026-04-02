@@ -30,11 +30,8 @@ Thumbs.db
 # Jupyter
 .ipynb_checkpoints/
 
-# Runtime data
+# Runtime data (logs only — ELO/predictions are tracked for GitHub Actions batch)
 data/batch.log
-data/daily_results.jsonl
-data/prediction_history.json
-data/elo_ratings.json
 data/llm_costs.jsonl
 data/models/*.joblib
 data/cache/
