@@ -26,28 +26,38 @@
   - Backend: kbo-prediction-production.up.railway.app (Railway)
   - Daily Batch: GitHub Actions (KST 00:00 cron)
 
-## 높은 우선순위
+## Phase 1: 수익화 기반 (높은 우선순위)
 
-- [ ] 계정 시스템 + 요금제 (Free / Basic / Pro)
-  - 인증 (JWT or API key)
-  - per-user Rate Limiting
-  - 프리미엄 콘텐츠 접근 제어 (API 레벨)
-  - 결제: 토스페이먼츠 연동
-  - 참고: docs/monetization.md
-- [ ] CORS 배포 도메인만 허용
-- [ ] 4월 적중률 테스트 (130경기+, 목표 55%+)
+- [x] CORS 배포 도메인만 허용 (Vercel + localhost:3000)
+- [x] 계정 시스템
+  - JWT 인증 (회원가입/로그인/토큰 갱신)
+  - 사용자 DB (SQLite → 추후 PostgreSQL 전환)
+  - per-user Rate Limiting (Free 10/hr, Basic 50/hr, Pro 200/hr)
+  - 보안 헤더 미들웨어 (CSP, HSTS, X-Frame-Options 등)
+  - 보안 테스트 67개 전체 통과
+- [x] 프리미엄 콘텐츠 접근 제어 (API 레벨)
+  - Free / Basic / Pro 티어별 응답 필터링
+- [ ] 구독 + 결제 MVP (monetization.md Phase 1)
+  - 토스페이먼츠 단건 월간 결제
+  - 이용약관/개인정보처리방침 업데이트
+- [ ] 4월 적중률 검증 (130경기+, 목표 55%+) — 병행 진행
 
-## 중간 우선순위
+## Phase 2: 구독 고도화 (중간 우선순위)
 
+- [ ] 정기결제 (빌링키 + 자동갱신/해지 UI) (monetization.md Phase 2)
+- [ ] 구독 관리 대시보드 (마이페이지)
 - [ ] 경기 전 라인업 수집 (KBO 사이트 구조상 제한 — ASP.NET UpdatePanel)
+- [ ] SSE 스트리밍 (분석 진행 실시간)
 
-## 낮은 우선순위
+## Phase 3: 성장 (낮은 우선순위)
 
-- [ ] MLB / NPB 확장
+- [ ] 쿠폰/프로모션 시스템 (monetization.md Phase 3)
+- [ ] 카카오 알림톡 연동
+- [ ] 웹 검색 API 연동 (Tavily/SerpAPI)
+- [ ] PostgreSQL 전환 (사용자 증가 시)
 - [ ] WebSocket 실시간 스코어
-- [ ] PostgreSQL 전환
 - [ ] 날씨/기온 피처
 - [ ] 연속 경기/이동거리 피처
-- [ ] SSE 스트리밍 (분석 진행 실시간)
 - [ ] NGBoost (진짜 Bayesian)
-- [ ] 웹 검색 API 연동 (Tavily/SerpAPI)
+- [ ] MLB / NPB 확장
+- [ ] B2B API

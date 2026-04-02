@@ -1,0 +1,51 @@
+name: Batch Predict (Hourly)
+
+on:
+  schedule:
+    # 매시간 실행 (KST 09:00~22:00 = UTC 00:00~13:00)
+    # 경기 있는 시간대만 커버
+    - cron: '0 0-13 * * *'
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: '강제 실행 phase (1=선발투수, 2=라인업). 비워두면 자동'
+        required: false
+      date:
+        description: '대상 날짜 (YYYYMMDD). 비워두면 오늘'
+        required: false
+
+jobs:
+  predict:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run batch predict
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          DATABASE_URL: sqlite:///./data/kbo_auth.db
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.phase }}" ]; then
+            ARGS="--phase ${{ inputs.phase }}"
+          fi
+          if [ -n "${{ inputs.date }}" ]; then
+            ARGS="$ARGS --date ${{ inputs.date }}"
+          fi
+          python scripts/batch_predict.py $ARGS
+
+      - name: Commit batch results
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "batch: pre-computed predictions"
+          file_pattern: "data/*.db data/*.json data/*.jsonl"

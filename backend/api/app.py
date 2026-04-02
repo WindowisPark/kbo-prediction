@@ -9,23 +9,27 @@ FastAPI 백엔드 — KBO 경기 예측 API.
   GET  /predictions         과거 예측 이력
   GET  /accuracy            적중률 통계
   GET  /teams               팀 목록
+  POST /auth/register       회원가입
+  POST /auth/login          로그인
+  POST /auth/refresh        토큰 갱신
+  GET  /auth/me             내 정보
 """
 import sys
 import json
 import logging
 import asyncio
+import os
 from pathlib import Path
 from datetime import datetime
 from contextlib import asynccontextmanager
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(ROOT))
 
-import os
 from dotenv import load_dotenv
 load_dotenv(ROOT / ".env", override=True)
 
@@ -34,6 +38,14 @@ from backend.api.schemas import (
     ModelProbabilities, DebateEntry, StandingsResponse, TeamInfo,
     AccuracyResponse,
 )
+from backend.api.deps import get_user_tier
+from backend.api.routes.auth import router as auth_router
+from backend.api.routes.admin import router as admin_router
+from backend.api.middleware.security_headers import SecurityHeadersMiddleware
+from backend.api.middleware.rate_limiter import RateLimiterMiddleware
+from backend.auth.database import init_db, SessionLocal
+from backend.auth.models import PreComputedPrediction
+from backend.auth.tier_filter import filter_prediction_response, filter_accuracy_response
 from backend.agents.predictor import GamePredictor
 from backend.scrapers.kbo_today import get_today_games, get_next_game_date, get_games_for_date
 from backend.utils.cost_tracker import get_daily_summary, get_monthly_summary
@@ -51,6 +63,54 @@ executor = ThreadPoolExecutor(max_workers=5)  # 최대 5경기 동시 예측
 HISTORY_FILE = ROOT / "data" / "prediction_history.json"
 
 
+def get_precomputed(game_date: str, home_team: str, away_team: str, tier: str) -> dict | None:
+    """배치 사전 분석 결과 조회. 티어에 따라 phase 결정:
+    - Free: phase 1 (선발투수 기반)
+    - Basic/Pro: phase 2 우선, 없으면 phase 1 fallback
+    """
+    db = SessionLocal()
+    try:
+        # 날짜 형식 통일 (YYYY-MM-DD → YYYYMMDD)
+        normalized_date = game_date.replace("-", "")
+
+        target_phase = 1 if tier == "free" else 2
+
+        result = db.query(PreComputedPrediction).filter(
+            PreComputedPrediction.game_date == normalized_date,
+            PreComputedPrediction.home_team == home_team,
+            PreComputedPrediction.away_team == away_team,
+            PreComputedPrediction.batch_phase == target_phase,
+        ).first()
+
+        # Basic/Pro: phase 2 없으면 phase 1 fallback
+        if result is None and target_phase == 2:
+            result = db.query(PreComputedPrediction).filter(
+                PreComputedPrediction.game_date == normalized_date,
+                PreComputedPrediction.home_team == home_team,
+                PreComputedPrediction.away_team == away_team,
+                PreComputedPrediction.batch_phase == 1,
+            ).first()
+
+        if result is None:
+            return None
+
+        return {
+            "home_team": result.home_team,
+            "away_team": result.away_team,
+            "date": game_date,
+            "predicted_winner": result.predicted_winner,
+            "home_win_probability": result.home_win_probability,
+            "confidence": result.confidence,
+            "key_factors": json.loads(result.key_factors),
+            "reasoning": result.reasoning,
+            "model_probabilities": json.loads(result.model_probabilities),
+            "debate_log": json.loads(result.debate_log),
+            "batch_phase": result.batch_phase,
+        }
+    finally:
+        db.close()
+
+
 def load_history():
     global prediction_history
     if HISTORY_FILE.exists():
@@ -66,8 +126,10 @@ def save_history():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """앱 시작 시 모델 로드."""
+    """앱 시작 시 모델 로드 + DB 초기화."""
     global predictor
+    logger.info("Initializing database...")
+    init_db()
     logger.info("Loading models...")
     predictor = GamePredictor(debate_rounds=2)
     predictor.load_models()
@@ -84,12 +146,33 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# --- 라우터 등록 ---
+app.include_router(auth_router)
+app.include_router(admin_router)
+
+# --- 미들웨어 체인 (역순 등록: 마지막 등록 = 가장 바깥) ---
+
+# 3. Rate Limiter (가장 안쪽 — 라우트 직전)
+app.add_middleware(RateLimiterMiddleware)
+
+# 2. Security Headers (중간)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# 1. CORS (가장 바깥 — preflight 처리)
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.getenv(
+        "CORS_ORIGINS",
+        "https://kbo-prediction-lilac.vercel.app,http://localhost:3000"
+    ).split(",")
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
@@ -102,16 +185,32 @@ async def health():
     }
 
 
-@app.post("/predict", response_model=PredictionResponse)
-async def predict_game(req: PredictionRequest):
-    """단일 경기 분석 (async — 캐시 + 동시 요청)."""
+@app.post("/predict")
+async def predict_game(req: PredictionRequest, tier: str = Depends(get_user_tier)):
+    """단일 경기 분석.
+
+    1순위: 배치 사전 분석 결과 반환 (LLM 비용 ₩0)
+    2순위: 캐시 결과 반환
+    3순위: Pro reanalyze=true → 실시간 LLM 호출
+    """
+    # 재분석은 Pro 전용
+    if req.reanalyze and tier != "pro":
+        raise HTTPException(403, "Reanalyze is available for Pro tier only")
+
+    # 1. 배치 결과 확인 (재분석 요청이 아닌 경우)
+    if not req.reanalyze:
+        precomputed = get_precomputed(req.date, req.home_team, req.away_team, tier)
+        if precomputed:
+            return filter_prediction_response(precomputed, tier)
+
+    # 2. 캐시 확인
+    cached = get_cached(req.date, req.home_team, req.away_team)
+    if cached and not req.reanalyze:
+        return filter_prediction_response(cached, tier)
+
+    # 3. 실시간 LLM 분석 (배치 결과 없거나 Pro 재분석)
     if predictor is None:
         raise HTTPException(500, "Models not loaded")
-
-    # 캐시 확인
-    cached = get_cached(req.date, req.home_team, req.away_team)
-    if cached:
-        return PredictionResponse(**cached)
 
     loop = asyncio.get_event_loop()
     try:
@@ -145,8 +244,10 @@ async def predict_game(req: PredictionRequest):
         debate_log=[DebateEntry(**entry) for entry in result.debate_log],
     )
 
+    response_dict = response.model_dump()
+
     # 캐시 저장 (4시간 TTL)
-    set_cached(req.date, req.home_team, req.away_team, response.model_dump())
+    set_cached(req.date, req.home_team, req.away_team, response_dict)
 
     # 이력 저장
     prediction_history.append({
@@ -159,15 +260,15 @@ async def predict_game(req: PredictionRequest):
         "key_factors": result.key_factors,
         "model_probs": result.model_probabilities,
         "created_at": datetime.now().isoformat(),
-        "actual_winner": None,  # 경기 후 업데이트
+        "actual_winner": None,
     })
     save_history()
 
-    return response
+    return filter_prediction_response(response_dict, tier)
 
 
 @app.post("/predict/batch")
-async def predict_batch(req: BatchPredictionRequest):
+async def predict_batch(req: BatchPredictionRequest, tier: str = Depends(get_user_tier)):
     """복수 경기 예측."""
     if predictor is None:
         raise HTTPException(500, "Models not loaded")
@@ -181,7 +282,7 @@ async def predict_batch(req: BatchPredictionRequest):
                 date=game.date,
                 extra_context=game.extra_context,
             )
-            results.append({
+            response_dict = {
                 "home_team": result.home_team,
                 "away_team": result.away_team,
                 "date": game.date,
@@ -190,7 +291,10 @@ async def predict_batch(req: BatchPredictionRequest):
                 "confidence": result.confidence,
                 "key_factors": result.key_factors,
                 "reasoning": result.reasoning,
-            })
+                "model_probabilities": result.model_probabilities,
+                "debate_log": result.debate_log,
+            }
+            results.append(filter_prediction_response(response_dict, tier))
         except Exception as e:
             results.append({
                 "home_team": game.home_team,
@@ -203,7 +307,7 @@ async def predict_batch(req: BatchPredictionRequest):
 
 
 @app.get("/standings", response_model=StandingsResponse)
-async def get_standings():
+async def get_standings(tier: str = Depends(get_user_tier)):
     """현재 ELO 순위."""
     if predictor is None or predictor.elo is None:
         raise HTTPException(500, "Models not loaded")
@@ -229,8 +333,8 @@ async def get_predictions(limit: int = 50):
     return {"predictions": prediction_history[-limit:]}
 
 
-@app.get("/accuracy", response_model=AccuracyResponse)
-async def get_accuracy():
+@app.get("/accuracy")
+async def get_accuracy(tier: str = Depends(get_user_tier)):
     """적중률 통계 (무승부 제외, 경기별 최신 예측만)."""
     # 경기별 중복 제거 (최신만)
     seen = set()
@@ -247,12 +351,13 @@ async def get_accuracy():
     draws = sum(1 for p in unique if p.get("is_draw"))
 
     if not completed:
-        return AccuracyResponse(
+        empty = AccuracyResponse(
             total_predictions=len(unique),
             correct=0,
             accuracy=0.0,
             by_confidence={"draws_excluded": {"total": draws, "correct": 0, "accuracy": 0}},
         )
+        return filter_accuracy_response(empty.model_dump(), tier)
 
     correct = sum(1 for p in completed if p["predicted_winner"] == p["actual_winner"])
 
@@ -263,12 +368,13 @@ async def get_accuracy():
             c = sum(1 for p in subset if p["predicted_winner"] == p["actual_winner"])
             by_conf[conf] = {"total": len(subset), "correct": c, "accuracy": c / len(subset)}
 
-    return AccuracyResponse(
+    result = AccuracyResponse(
         total_predictions=len(unique),
         correct=correct,
         accuracy=correct / len(completed),
         by_confidence=by_conf,
     )
+    return filter_accuracy_response(result.model_dump(), tier)
 
 
 @app.put("/predictions/{index}/result")
@@ -310,11 +416,9 @@ async def today_games(date: str | None = None):
 
         games = get_game_list(target) if target else []
 
-        # 해당 날짜 기준 이전/다음 경기일 계산
         prev_date = dates.get("prev", "")
         next_date = dates.get("next", "")
 
-        # date 파라미터가 있으면 해당 날짜 기준으로 prev/next 재계산
         if date:
             from datetime import datetime, timedelta
             dt = datetime.strptime(date, "%Y%m%d")
@@ -333,7 +437,7 @@ async def today_games(date: str | None = None):
 
 
 @app.post("/today/predict")
-async def predict_today():
+async def predict_today(tier: str = Depends(get_user_tier)):
     """오늘 전 경기 일괄 예측 — 병렬 실행."""
     if predictor is None:
         raise HTTPException(500, "Models not loaded")
@@ -379,7 +483,7 @@ async def predict_today():
                 "model_probs": result.model_probabilities,
                 "created_at": datetime.now().isoformat(), "actual_winner": None,
             })
-            return {**game, "prediction": pred}
+            return {**game, "prediction": filter_prediction_response(pred, tier)}
         except Exception as e:
             return {**game, "prediction": None, "error": str(e)}
 

@@ -9,6 +9,7 @@ class PredictionRequest(BaseModel):
     extra_context: str = ""
     home_starter: str = ""
     away_starter: str = ""
+    reanalyze: bool = False  # Pro 전용: 실시간 재분석 요청
 
 
 class BatchPredictionRequest(BaseModel):

@@ -38,6 +38,7 @@ data/elo_ratings.json
 data/llm_costs.jsonl
 data/models/*.joblib
 data/cache/
+data/*.db
 
 # Claude
 .claude/
