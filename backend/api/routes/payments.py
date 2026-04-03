@@ -107,18 +107,28 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
 
 def _handle_checkout_completed(session, db: Session):
     """결제 완료 → 티어 업그레이드."""
-    metadata = getattr(session, "metadata", {}) or {}
-    user_id = metadata.get("user_id") if isinstance(metadata, dict) else getattr(metadata, "user_id", None)
-    tier = metadata.get("tier") if isinstance(metadata, dict) else getattr(metadata, "tier", None)
-    subscription_id = getattr(session, "subscription", None)
+    metadata = session.metadata
+    logger.info(f"Webhook metadata: {metadata}, type: {type(metadata)}")
+
+    user_id = metadata.get("user_id") if hasattr(metadata, "get") else metadata["user_id"]
+    tier = metadata.get("tier") if hasattr(metadata, "get") else metadata["tier"]
+    subscription_id = session.subscription
+
+    logger.info(f"Webhook parsed: user_id={user_id}, tier={tier}, sub={subscription_id}")
 
     if not user_id or not tier:
-        logger.warning(f"Checkout completed but missing metadata: {getattr(session, 'id', 'unknown')}")
+        logger.warning(f"Checkout completed but missing metadata: {session.id}")
         return
 
     user = db.query(User).filter(User.id == int(user_id)).first()
     if not user:
-        logger.warning(f"User {user_id} not found for checkout {getattr(session, 'id', 'unknown')}")
+        # user_id로 못 찾으면 customer_id로 시도
+        customer_id = session.customer
+        user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
+        logger.warning(f"User id={user_id} not found, customer lookup: {user}")
+
+    if not user:
+        logger.warning(f"User not found for checkout {session.id}")
         return
 
     user.tier = tier
