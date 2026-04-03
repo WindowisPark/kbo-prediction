@@ -42,12 +42,23 @@
   - Phase 2: 1시간 전 — 확정 라인업 반영
   - Fallback: 누락 자동 보충
 - [x] 최근 경기 맥락 10경기로 확장 (시즌 초 가용 수 기준)
+- [x] passlib→bcrypt 직접 사용 (bcrypt>=4.1 호환)
+- [x] Stripe 결제 테스트 완료 (Checkout + Webhook + 자동 tier 변경)
+- [x] Resend 이메일 인증 연동 완료
+- [x] PostgreSQL 전환 (Railway 재배포 시 데이터 유실 방지)
+- [x] prediction_history + llm_costs DB 마이그레이션 (파일→PostgreSQL)
+- [x] Standings 현재 시즌 데이터 반영 (daily_results.jsonl 기반 승률/연승)
+- [x] 카드 미리보기 승자 기준 확률 표시
+- [x] 예상 라인업 fallback (최근 경기 빈도 기반)
+- [x] 문서 정합성 수정 (agents.md 모델 배정, features.md 버전, data-pipeline.md)
+- [x] openai 의존성 추가
+- [x] 배치 크래시 수정 (CSV 파일 없을 때 Step 4 스킵)
 
 ## Phase 1: 수익화 잔여
 
-- [ ] Stripe 환경변수 설정 + 실결제 테스트
-- [ ] Resend 환경변수 설정 + 이메일 발송 테스트
 - [ ] 이용약관/개인정보처리방침 결제 관련 업데이트
+- [ ] 커스텀 도메인 연결 (fullcount-ai.com) + Resend 도메인 인증
+- [ ] Stripe 라이브 모드 전환 (사업자 인증 후)
 - [ ] 4월 적중률 검증 (130경기+, 목표 55%+) — 병행 진행
 
 ## Phase 2: 구독 고도화 (중간 우선순위)
@@ -55,6 +66,7 @@
 - [ ] 토스페이먼츠 연동 (사업자 등록 후)
 - [ ] 구독 관리 (자동갱신/해지 UI)
 - [ ] SSE 스트리밍 (분석 진행 실시간)
+- [ ] Standings ELO 실시간 반영 (Railway 환경 호환)
 
 ## Phase 3: 성장 (낮은 우선순위)
 

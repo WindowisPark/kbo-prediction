@@ -145,14 +145,15 @@ ELO 순위.
 - Pro: 전체 상세
 
 ### GET /game/{game_id}/lineup
-경기 라인업. 경기 전이면 GetLineUpAnalysis API (확정 타선), 경기 후면 박스스코어.
+경기 라인업. 3단계 fallback: 확정 라인업 → 박스스코어 → 예상 라인업 (최근 경기 빈도 기반).
 ```json
 {
   "game_id": "20260401HTLG0",
   "available": true,
-  "source": "pregame",
-  "home_lineup": [{"order": "1", "position": "우익수", "name": "홍창기", "war": "0.00"}],
-  "away_lineup": [...]
+  "source": "pregame|boxscore|expected",
+  "home_lineup": [{"order": "1", "position": "우익수", "name": "홍창기"}],
+  "away_lineup": [...],
+  "games_used": 5  // source=expected일 때만
 }
 ```
 
@@ -160,7 +161,7 @@ ELO 순위.
 현재 KBO 팀 목록.
 
 ### GET /costs?date={YYYY-MM-DD}
-LLM API 비용 조회.
+LLM API 비용 조회 (PostgreSQL 기반).
 
 ### POST /payments/create-checkout
 Stripe Checkout Session 생성. (인증 필요)
