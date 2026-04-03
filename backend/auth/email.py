@@ -9,7 +9,7 @@ import requests
 logger = logging.getLogger(__name__)
 
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "KBO AI Analyzer <noreply@kbo-analyzer.com>")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "KBO AI Analyzer <onboarding@resend.dev>")
 VERIFICATION_EXPIRE_MINUTES = 10
 
 
