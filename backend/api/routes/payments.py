@@ -105,19 +105,20 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
     return JSONResponse({"status": "ok"})
 
 
-def _handle_checkout_completed(session: dict, db: Session):
+def _handle_checkout_completed(session, db: Session):
     """결제 완료 → 티어 업그레이드."""
-    user_id = session.get("metadata", {}).get("user_id")
-    tier = session.get("metadata", {}).get("tier")
-    subscription_id = session.get("subscription")
+    metadata = getattr(session, "metadata", {}) or {}
+    user_id = metadata.get("user_id") if isinstance(metadata, dict) else getattr(metadata, "user_id", None)
+    tier = metadata.get("tier") if isinstance(metadata, dict) else getattr(metadata, "tier", None)
+    subscription_id = getattr(session, "subscription", None)
 
     if not user_id or not tier:
-        logger.warning(f"Checkout completed but missing metadata: {session.get('id')}")
+        logger.warning(f"Checkout completed but missing metadata: {getattr(session, 'id', 'unknown')}")
         return
 
     user = db.query(User).filter(User.id == int(user_id)).first()
     if not user:
-        logger.warning(f"User {user_id} not found for checkout {session.get('id')}")
+        logger.warning(f"User {user_id} not found for checkout {getattr(session, 'id', 'unknown')}")
         return
 
     user.tier = tier
@@ -126,20 +127,22 @@ def _handle_checkout_completed(session: dict, db: Session):
     logger.info(f"User {user.email} upgraded to {tier}")
 
 
-def _handle_subscription_updated(subscription: dict, db: Session):
+def _handle_subscription_updated(subscription, db: Session):
     """구독 변경 (업/다운그레이드)."""
-    customer_id = subscription.get("customer")
+    customer_id = getattr(subscription, "customer", None)
     user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
     if not user:
         return
 
     # 구독 상태 확인
-    status = subscription.get("status")
+    status = getattr(subscription, "status", None)
     if status in ("active", "trialing"):
         # price_id로 티어 판별
-        items = subscription.get("items", {}).get("data", [])
+        items_obj = getattr(subscription, "items", None)
+        items = getattr(items_obj, "data", []) if items_obj else []
         if items:
-            price_id = items[0].get("price", {}).get("id")
+            price = getattr(items[0], "price", None)
+            price_id = getattr(price, "id", None) if price else None
             if price_id == BASIC_PRICE_ID:
                 user.tier = "basic"
             elif price_id == PRO_PRICE_ID:
@@ -151,9 +154,9 @@ def _handle_subscription_updated(subscription: dict, db: Session):
     db.commit()
 
 
-def _handle_subscription_deleted(subscription: dict, db: Session):
+def _handle_subscription_deleted(subscription, db: Session):
     """구독 취소/만료 → Free로 다운그레이드."""
-    customer_id = subscription.get("customer")
+    customer_id = getattr(subscription, "customer", None)
     user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
     if not user:
         return
