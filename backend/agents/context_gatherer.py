@@ -144,11 +144,16 @@ def gather_starter_context(
     year: int,
     pitcher_df=None,
 ) -> str:
-    """선발투수 개인 스탯 + 외국인/신인 플래그 컨텍스트."""
+    """선발투수 개인 스탯 + 외국인/신인 플래그 + 유사 외국인 투수 컨텍스트."""
     if pitcher_df is None or pitcher_df.empty:
         return ""
 
     from backend.utils.player_stats import lookup_starter, format_starter_info
+    from backend.utils.foreign_pitcher_similarity import (
+        build_foreign_pitcher_index,
+        find_similar_pitchers,
+        format_similar_pitchers_context,
+    )
 
     lines = ["\n### 선발투수 상세"]
 
@@ -157,6 +162,17 @@ def gather_starter_context(
 
     home_info = lookup_starter(home_starter, home_team_raw, year, pitcher_df)
     lines.append(format_starter_info(home_info, "home"))
+
+    # 데뷔 시즌 외국인 투수가 있으면 유사 선수 매칭 추가
+    foreign_index = None
+    for info in [away_info, home_info]:
+        if info and info.get("is_debut_foreign"):
+            if foreign_index is None:
+                foreign_index = build_foreign_pitcher_index(pitcher_df)
+            similar = find_similar_pitchers(info, foreign_index, k=5)
+            if similar:
+                lines.append("")
+                lines.append(format_similar_pitchers_context(info["name"], similar))
 
     return "\n".join(lines)
 
