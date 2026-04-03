@@ -34,6 +34,37 @@ class VerificationCode(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
 
+class PredictionHistory(Base):
+    """분석 이력 — 영구 보존."""
+    __tablename__ = "prediction_history"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    date: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    home_team: Mapped[str] = mapped_column(String(50), nullable=False)
+    away_team: Mapped[str] = mapped_column(String(50), nullable=False)
+    predicted_winner: Mapped[str] = mapped_column(String(50), nullable=False)
+    home_win_probability: Mapped[float] = mapped_column(Float, nullable=False)
+    confidence: Mapped[str] = mapped_column(String(20), nullable=False)
+    key_factors: Mapped[str] = mapped_column(Text, nullable=False)  # JSON array
+    model_probs: Mapped[str] = mapped_column(Text, nullable=False)  # JSON
+    actual_winner: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    is_draw: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+
+class LLMCostLog(Base):
+    """LLM API 비용 로그 — 영구 보존."""
+    __tablename__ = "llm_cost_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    model: Mapped[str] = mapped_column(String(100), nullable=False)
+    agent: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    cost_usd: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
+
+
 class PreComputedPrediction(Base):
     """배치 사전 분석 결과 — 1차(선발투수), 2차(실제 라인업)."""
     __tablename__ = "pre_computed_predictions"

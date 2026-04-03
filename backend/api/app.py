@@ -45,7 +45,7 @@ from backend.api.routes.payments import router as payments_router
 from backend.api.middleware.security_headers import SecurityHeadersMiddleware
 from backend.api.middleware.rate_limiter import RateLimiterMiddleware
 from backend.auth.database import init_db, SessionLocal
-from backend.auth.models import PreComputedPrediction
+from backend.auth.models import PreComputedPrediction, PredictionHistory
 from backend.auth.tier_filter import filter_prediction_response, filter_accuracy_response
 from backend.agents.predictor import GamePredictor
 from backend.scrapers.kbo_today import get_today_games, get_next_game_date, get_games_for_date
@@ -114,16 +114,48 @@ def get_precomputed(game_date: str, home_team: str, away_team: str, tier: str) -
 
 
 def load_history():
+    """DB에서 prediction_history 로드."""
     global prediction_history
-    if HISTORY_FILE.exists():
-        prediction_history = json.loads(HISTORY_FILE.read_text(encoding="utf-8"))
+    db = SessionLocal()
+    try:
+        rows = db.query(PredictionHistory).order_by(PredictionHistory.id).all()
+        prediction_history = []
+        for r in rows:
+            prediction_history.append({
+                "date": r.date, "home_team": r.home_team, "away_team": r.away_team,
+                "predicted_winner": r.predicted_winner,
+                "home_win_probability": r.home_win_probability,
+                "confidence": r.confidence,
+                "key_factors": json.loads(r.key_factors),
+                "model_probs": json.loads(r.model_probs),
+                "actual_winner": r.actual_winner,
+                "is_draw": r.is_draw,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "_db_id": r.id,
+            })
+    finally:
+        db.close()
 
 
-def save_history():
-    HISTORY_FILE.write_text(
-        json.dumps(prediction_history, ensure_ascii=False, indent=2),
-        encoding="utf-8"
-    )
+def save_prediction(pred: dict):
+    """단일 예측을 DB에 저장."""
+    db = SessionLocal()
+    try:
+        row = PredictionHistory(
+            date=pred["date"], home_team=pred["home_team"], away_team=pred["away_team"],
+            predicted_winner=pred["predicted_winner"],
+            home_win_probability=pred["home_win_probability"],
+            confidence=pred["confidence"],
+            key_factors=json.dumps(pred.get("key_factors", []), ensure_ascii=False),
+            model_probs=json.dumps(pred.get("model_probs", {}), ensure_ascii=False),
+            actual_winner=pred.get("actual_winner"),
+        )
+        db.add(row)
+        db.commit()
+        db.refresh(row)
+        pred["_db_id"] = row.id
+    finally:
+        db.close()
 
 
 @asynccontextmanager
@@ -259,8 +291,8 @@ async def predict_game(req: PredictionRequest, tier: str = Depends(get_user_tier
     # 캐시 저장 (4시간 TTL)
     set_cached(req.date, req.home_team, req.away_team, response_dict)
 
-    # 이력 저장
-    prediction_history.append({
+    # 이력 저장 (DB)
+    pred = {
         "date": req.date,
         "home_team": result.home_team,
         "away_team": result.away_team,
@@ -271,8 +303,9 @@ async def predict_game(req: PredictionRequest, tier: str = Depends(get_user_tier
         "model_probs": result.model_probabilities,
         "created_at": datetime.now().isoformat(),
         "actual_winner": None,
-    })
-    save_history()
+    }
+    prediction_history.append(pred)
+    save_prediction(pred)
 
     return filter_prediction_response(response_dict, tier)
 
@@ -453,7 +486,19 @@ async def update_result(index: int, actual_winner: str):
         raise HTTPException(404, "Prediction not found")
 
     prediction_history[index]["actual_winner"] = actual_winner
-    save_history()
+
+    # DB 업데이트
+    db_id = prediction_history[index].get("_db_id")
+    if db_id:
+        db = SessionLocal()
+        try:
+            row = db.query(PredictionHistory).filter(PredictionHistory.id == db_id).first()
+            if row:
+                row.actual_winner = actual_winner
+                db.commit()
+        finally:
+            db.close()
+
     return {"status": "updated"}
 
 
@@ -544,20 +589,21 @@ async def predict_today(tier: str = Depends(get_user_tier)):
                 "model_probabilities": result.model_probabilities,
                 "debate_log": result.debate_log,
             }
-            prediction_history.append({
+            hist = {
                 "date": game["date"], "home_team": home, "away_team": away,
                 "predicted_winner": result.predicted_winner,
                 "home_win_probability": result.home_win_probability,
                 "confidence": result.confidence, "key_factors": result.key_factors,
                 "model_probs": result.model_probabilities,
                 "created_at": datetime.now().isoformat(), "actual_winner": None,
-            })
+            }
+            prediction_history.append(hist)
+            save_prediction(hist)
             return {**game, "prediction": filter_prediction_response(pred, tier)}
         except Exception as e:
             return {**game, "prediction": None, "error": str(e)}
 
     results = await asyncio.gather(*[predict_single(g) for g in games])
-    save_history()
 
     dates = get_next_game_date()
     return {
