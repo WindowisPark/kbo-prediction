@@ -49,7 +49,7 @@ from backend.auth.models import PreComputedPrediction
 from backend.auth.tier_filter import filter_prediction_response, filter_accuracy_response
 from backend.agents.predictor import GamePredictor
 from backend.scrapers.kbo_today import get_today_games, get_next_game_date, get_games_for_date
-from backend.scrapers.kbo_pregame_lineup import get_pregame_lineup
+from backend.scrapers.kbo_pregame_lineup import get_pregame_lineup, get_expected_lineup
 from backend.utils.cost_tracker import get_daily_summary, get_monthly_summary
 from backend.utils.cache import get_cached, set_cached
 from backend.scrapers.kbo_lineup import get_lineup
@@ -590,6 +590,25 @@ async def game_lineup(game_id: str):
         result = get_lineup(game_id)
         if result and (result.get("away_lineup") or result.get("home_lineup")):
             return {"game_id": game_id, "available": True, "source": "boxscore", **result}
+
+        # 3차: 예상 라인업 (최근 경기 빈도 기반)
+        date_part = game_id[:8]  # YYYYMMDD
+        from backend.scrapers.kbo_today import get_game_list
+        games = get_game_list(date_part)
+        matched = [g for g in games if g.get("game_id") == game_id]
+        if matched:
+            g = matched[0]
+            away_expected = get_expected_lineup(g["away_team"], num_games=5)
+            home_expected = get_expected_lineup(g["home_team"], num_games=5)
+            if away_expected.get("lineup") or home_expected.get("lineup"):
+                return {
+                    "game_id": game_id,
+                    "available": True,
+                    "source": "expected",
+                    "away_lineup": away_expected.get("lineup", []),
+                    "home_lineup": home_expected.get("lineup", []),
+                    "games_used": max(away_expected.get("games_used", 0), home_expected.get("games_used", 0)),
+                }
 
         return {
             "game_id": game_id,

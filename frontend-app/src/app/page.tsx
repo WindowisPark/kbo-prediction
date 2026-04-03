@@ -281,9 +281,11 @@ interface LineupBatter { order: string; position: string; name: string; }
 interface LineupPitcher { name: string; role: string; }
 interface LineupData {
   available: boolean;
+  source?: string;
   away_lineup?: LineupBatter[]; home_lineup?: LineupBatter[];
   away_pitchers?: LineupPitcher[]; home_pitchers?: LineupPitcher[];
   away_starter?: string; home_starter?: string;
+  games_used?: number;
   message?: string;
 }
 
@@ -319,7 +321,14 @@ function LineupPanel({ data, gameId, onClose }: { data: LineupData; gameId: stri
         <div className="h-1 bg-gradient-to-r from-blue-600 via-cyan-500 to-orange-500" />
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold">Lineup</h3>
+            <h3 className="text-lg font-bold">
+              Lineup
+              {data.source === "expected" && (
+                <span className="ml-2 text-xs font-normal text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
+                  예상 (최근 {data.games_used || 5}경기 기반)
+                </span>
+              )}
+            </h3>
             <button onClick={onClose} className="text-[#64748b] hover:text-white text-xl">&times;</button>
           </div>
 
