@@ -447,15 +447,19 @@ function TodayGameCard({ game, onSelect, onLineup, onPredict }: {
               {TEAM_META[pred.predicted_winner]?.short || pred.predicted_winner}
             </span>
           </div>
-          {pred.home_win_probability != null && (
-            <div className="flex items-center gap-2">
-              <div className="w-16 h-1.5 bg-[#1e293b] rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full"
-                     style={{ width: `${Math.round(pred.home_win_probability * 100)}%` }} />
+          {pred.home_win_probability != null && (() => {
+            const isHomeWin = pred.predicted_winner === game.home_team || pred.predicted_winner === TEAM_META[game.home_team]?.short;
+            const wp = isHomeWin ? pred.home_win_probability : 1 - pred.home_win_probability;
+            return (
+              <div className="flex items-center gap-2">
+                <div className="w-16 h-1.5 bg-[#1e293b] rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full"
+                       style={{ width: `${Math.round(wp * 100)}%` }} />
+                </div>
+                <span className="text-xs font-mono text-[#94a3b8]">{Math.round(wp * 100)}%</span>
               </div>
-              <span className="text-xs font-mono text-[#94a3b8]">{Math.round(pred.home_win_probability * 100)}%</span>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
       {game.error && (
