@@ -385,11 +385,12 @@ interface TodayGame {
   prediction?: Prediction | null; error?: string; note?: string;
 }
 
-function TodayGameCard({ game, onSelect, onLineup, onPredict, lineupLoading }: {
+function TodayGameCard({ game, onSelect, onLineup, onPredict, lineupLoading, canReanalyze }: {
   game: TodayGame; onSelect: (p: Prediction) => void;
   onLineup: (gameId: string) => void;
   onPredict: (game: TodayGame) => void;
   lineupLoading?: boolean;
+  canReanalyze?: boolean;
 }) {
   const away = TEAM_META[game.away_team] || { name: game.away_team, color: "#666", short: game.away_team };
   const home = TEAM_META[game.home_team] || { name: game.home_team, color: "#666", short: game.home_team };
@@ -495,12 +496,25 @@ function TodayGameCard({ game, onSelect, onLineup, onPredict, lineupLoading }: {
           </button>
         )}
         {pred && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onSelect(pred); }}
-            className="flex-1 text-xs font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 py-2 rounded-lg border border-blue-500/30 transition-all"
-          >
-            상세 보기
-          </button>
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); onSelect(pred); }}
+              className="flex-1 text-xs font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 py-2 rounded-lg border border-blue-500/30 transition-all"
+            >
+              상세 보기
+            </button>
+            {!isFinished && canReanalyze && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onPredict(game); }}
+                disabled={game.status === "predicting"}
+                className="text-xs text-[#94a3b8] hover:text-cyan-400 bg-[#0a0e1a] hover:bg-[#1a2236] px-4 py-2 rounded-lg border border-[#1e293b] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {game.status === "predicting" ? (
+                  <PredictingIndicator />
+                ) : "재분석"}
+              </button>
+            )}
+          </>
         )}
         {game.game_id && (
           <button
@@ -535,6 +549,9 @@ export default function Dashboard() {
   const [todayLoading, setTodayLoading] = useState(true);
   const [predictingAll, setPredictingAll] = useState(false);
   const [predictingIds, setPredictingIds] = useState<Set<string>>(new Set());
+
+  // 분석 잔여 횟수
+  const [predictRemaining, setPredictRemaining] = useState<number | null>(null);
 
   // 라인업
   const [lineupData, setLineupData] = useState<LineupData | null>(null);
@@ -657,9 +674,11 @@ export default function Dashboard() {
         }),
       });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const remaining = res.headers.get("X-Predict-Remaining");
+      if (remaining !== null) setPredictRemaining(parseInt(remaining, 10));
       const pred = await res.json();
       setTodayGames(prev => prev.map(g =>
-        g.game_id === game.game_id ? { ...g, prediction: pred } : g
+        g.game_id === game.game_id ? { ...g, prediction: pred, error: undefined } : g
       ));
       setPrediction(pred);
       addToast(`${getTeam(game.away_team).short} vs ${getTeam(game.home_team).short} 분석 완료`);
@@ -681,12 +700,15 @@ export default function Dashboard() {
   const handlePredictAll = async () => {
     setPredictingAll(true);
     setError("");
-    // 아직 예측 안 된 경기만 병렬로
-    const unpredicted = todayGames.filter(g => !g.prediction && g.status !== "final");
-    const allIds = new Set(unpredicted.map(g => g.game_id));
+    const canReanalyze = user?.tier === "pro" || user?.tier === "basic";
+    // 재분석 가능 티어: 전체 경기, 아니면 미분석만
+    const targets = canReanalyze
+      ? todayGames.filter(g => g.status !== "final")
+      : todayGames.filter(g => !g.prediction && g.status !== "final");
+    const allIds = new Set(targets.map(g => g.game_id));
     setPredictingIds(allIds);
 
-    await Promise.allSettled(unpredicted.map(g => handlePredictSingle(g)));
+    await Promise.allSettled(targets.map(g => handlePredictSingle(g)));
     setPredictingAll(false);
   };
 
@@ -865,6 +887,10 @@ export default function Dashboard() {
                 onLineup={fetchLineup}
                 onPredict={handlePredictSingle}
                 lineupLoading={lineupLoadingId === g.game_id}
+                canReanalyze={
+                  (user?.tier === "pro") ||
+                  (user?.tier === "basic" && (predictRemaining === null || predictRemaining > 0))
+                }
               />
             ))}
           </div>
