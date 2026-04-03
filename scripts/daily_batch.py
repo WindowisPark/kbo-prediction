@@ -186,6 +186,9 @@ def step4_append_games(completed: list[dict]):
     import pandas as pd
 
     games_file = ROOT / "data" / "raw" / "kbo_games_2000_2025.csv"
+    if not games_file.exists():
+        logger.warning("  games CSV not found, skipping append")
+        return
     df = pd.read_csv(games_file)
     existing_ids = set(df["game_id"].values)
 
