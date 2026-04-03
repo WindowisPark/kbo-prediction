@@ -322,15 +322,20 @@ function LineupPanel({ data, gameId, onClose }: { data: LineupData; gameId: stri
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold">
-              Lineup
+              {data.source === "expected" ? "예상 라인업" : data.source === "pregame" ? "확정 라인업" : "라인업"}
               {data.source === "expected" && (
                 <span className="ml-2 text-xs font-normal text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
-                  예상 (최근 {data.games_used || 5}경기 기반)
+                  최근 {data.games_used || 5}경기 출전 빈도 기반
                 </span>
               )}
             </h3>
             <button onClick={onClose} className="text-[#64748b] hover:text-white text-xl">&times;</button>
           </div>
+          {data.source === "expected" && (
+            <div className="mb-4 text-xs text-[#64748b] bg-[#111827] rounded-lg border border-[#1e293b] px-4 py-2.5">
+              최근 경기 출전 기록을 바탕으로 구성한 예상 라인업입니다. 실제 라인업은 경기 시작 약 30분 전에 확정됩니다.
+            </div>
+          )}
 
           {/* 선발투수 */}
           <div className="grid grid-cols-2 gap-4 mb-6">
@@ -380,10 +385,11 @@ interface TodayGame {
   prediction?: Prediction | null; error?: string; note?: string;
 }
 
-function TodayGameCard({ game, onSelect, onLineup, onPredict }: {
+function TodayGameCard({ game, onSelect, onLineup, onPredict, lineupLoading }: {
   game: TodayGame; onSelect: (p: Prediction) => void;
   onLineup: (gameId: string) => void;
   onPredict: (game: TodayGame) => void;
+  lineupLoading?: boolean;
 }) {
   const away = TEAM_META[game.away_team] || { name: game.away_team, color: "#666", short: game.away_team };
   const home = TEAM_META[game.home_team] || { name: game.home_team, color: "#666", short: game.home_team };
@@ -498,10 +504,16 @@ function TodayGameCard({ game, onSelect, onLineup, onPredict }: {
         )}
         {game.game_id && (
           <button
-            onClick={(e) => { e.stopPropagation(); onLineup(game.game_id); }}
-            className={`text-xs text-[#94a3b8] hover:text-cyan-400 bg-[#0a0e1a] hover:bg-[#1a2236] px-4 py-2 rounded-lg border border-[#1e293b] transition-all ${isFinished && !pred ? "flex-1" : ""}`}
+            onClick={(e) => { e.stopPropagation(); if (!lineupLoading) onLineup(game.game_id); }}
+            disabled={lineupLoading}
+            className={`text-xs ${lineupLoading ? "text-cyan-400" : "text-[#94a3b8] hover:text-cyan-400"} bg-[#0a0e1a] hover:bg-[#1a2236] px-4 py-2 rounded-lg border border-[#1e293b] transition-all ${isFinished && !pred ? "flex-1" : ""} ${lineupLoading ? "opacity-80 cursor-wait" : ""}`}
           >
-            Lineup
+            {lineupLoading ? (
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+                라인업 조회 중
+              </span>
+            ) : "라인업"}
           </button>
         )}
       </div>
@@ -527,6 +539,7 @@ export default function Dashboard() {
   // 라인업
   const [lineupData, setLineupData] = useState<LineupData | null>(null);
   const [lineupGameId, setLineupGameId] = useState("");
+  const [lineupLoadingId, setLineupLoadingId] = useState("");
 
   // 토스트
   const [toasts, setToasts] = useState<{id: number; message: string; type: "success"|"error"}[]>([]);
@@ -602,6 +615,7 @@ export default function Dashboard() {
   useEffect(() => { loadGames(); }, []);
 
   const fetchLineup = async (gameId: string) => {
+    setLineupLoadingId(gameId);
     try {
       const res = await fetch(`${API_URL}/game/${gameId}/lineup`);
       const data = await res.json();
@@ -610,6 +624,8 @@ export default function Dashboard() {
     } catch {
       setLineupData({ available: false, message: "라인업 로딩 실패" });
       setLineupGameId(gameId);
+    } finally {
+      setLineupLoadingId("");
     }
   };
 
@@ -848,6 +864,7 @@ export default function Dashboard() {
                 onSelect={setPrediction}
                 onLineup={fetchLineup}
                 onPredict={handlePredictSingle}
+                lineupLoading={lineupLoadingId === g.game_id}
               />
             ))}
           </div>
