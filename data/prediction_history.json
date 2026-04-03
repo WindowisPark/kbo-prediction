@@ -265,7 +265,10 @@
       "ai_combined": 0.45170849444164546
     },
     "created_at": "2026-04-02T15:59:07.721989",
-    "actual_winner": null
+    "actual_winner": "LG",
+    "is_draw": false,
+    "home_score": 2,
+    "away_score": 1
   },
   {
     "date": "2026-04-02",
@@ -287,7 +290,10 @@
       "ai_combined": 0.4517974836445311
     },
     "created_at": "2026-04-02T16:05:28.516966",
-    "actual_winner": null
+    "actual_winner": "SSG",
+    "is_draw": false,
+    "home_score": 11,
+    "away_score": 1
   },
   {
     "date": "2026-04-02",
@@ -309,7 +315,10 @@
       "ai_combined": 0.43523827798617576
     },
     "created_at": "2026-04-02T16:05:29.690528",
-    "actual_winner": null
+    "actual_winner": "NC",
+    "is_draw": false,
+    "home_score": 8,
+    "away_score": 4
   },
   {
     "date": "2026-04-02",
@@ -331,7 +340,10 @@
       "ai_combined": 0.44006095634336434
     },
     "created_at": "2026-04-02T16:05:31.827792",
-    "actual_winner": null
+    "actual_winner": "삼성",
+    "is_draw": false,
+    "home_score": 5,
+    "away_score": 2
   },
   {
     "date": "2026-04-02",
@@ -353,6 +365,9 @@
       "ai_combined": 0.5151187759070633
     },
     "created_at": "2026-04-02T16:05:34.560926",
-    "actual_winner": null
+    "actual_winner": "KT",
+    "is_draw": false,
+    "home_score": 8,
+    "away_score": 13
   }
 ]
