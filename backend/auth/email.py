@@ -25,7 +25,10 @@ def get_expiry() -> datetime:
 def send_verification_email(to_email: str, code: str) -> bool:
     """Resend API로 인증 코드 이메일 발송. 성공 시 True."""
     if not RESEND_API_KEY:
-        # API 키 없으면 로그만 남기고 성공 처리 (개발 환경)
+        if os.getenv("RAILWAY_ENVIRONMENT"):
+            logger.error("RESEND_API_KEY not set in production — email not sent")
+            return False
+        # 로컬 개발: 로그에 코드 출력
         logger.warning(f"RESEND_API_KEY not set — verification code for {to_email}: {code}")
         return True
 

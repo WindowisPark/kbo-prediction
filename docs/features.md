@@ -1,7 +1,7 @@
 # 피처 엔지니어링 명세
 
 **파일**: `backend/features/build_features.py`
-**매트릭스**: `data/features/game_features_v4.csv` (15,026행 × 104열)
+**매트릭스**: `data/features/game_features_v5.csv` (15,026행 × 103열)
 
 ## 카테고리별 피처
 

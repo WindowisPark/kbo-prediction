@@ -32,7 +32,7 @@ data/
 │   ├── pitching_2000_2025.csv         5,752행 × 42열
 │   └── games_with_starters.csv        경기+선발 매칭
 ├── features/
-│   └── game_features_v3.csv           15,026행 × 97열
+│   └── game_features_v5.csv           15,026행 × 103열
 ├── elo_ratings.json                   최신 ELO (배치 갱신)
 ├── prediction_history.json            분석 이력
 ├── daily_results.jsonl                경기 결과 누적
@@ -53,6 +53,19 @@ Step 3: ELO 레이팅 갱신 → elo_ratings.json
 Step 4: 새 경기를 games CSV에 추가
 Step 5: 적중률 요약 → batch.log
 ```
+
+## 2단계 배치 예측
+
+**파일**: `scripts/batch_predict.py`
+**워크플로우**: `.github/workflows/batch-predict.yml` (매시간 UTC 00-13)
+
+```
+Phase 1: 경기 4시간 전 ±30분 — 선발투수 + 예상 라인업 기반 분석
+Phase 2: 경기 1시간 전 ±30분 — 확정 라인업 반영 재분석
+Fallback: 누락된 경기 자동 보충
+```
+
+결과는 `PreComputedPrediction` DB 테이블에 저장, `/predict` 요청 시 캐시로 활용.
 
 ## 초기 데이터 수집 스크립트
 

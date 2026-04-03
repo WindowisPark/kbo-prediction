@@ -244,5 +244,115 @@
     "is_draw": false,
     "home_score": 7,
     "away_score": 2
+  },
+  {
+    "date": "2026-04-02",
+    "home_team": "LG",
+    "away_team": "KIA",
+    "predicted_winner": "KIA",
+    "home_win_probability": 0.4,
+    "confidence": "low",
+    "key_factors": [
+      "LG 선발 웰스의 KBO 적응 불확실성 (데뷔 외국인 투수)",
+      "양 팀의 시즌 초반 부진 및 소표본 데이터의 한계",
+      "KIA의 근소한 팀 스탯 우위 (OPS, ERA) 및 최근 연패 탈출 모멘텀",
+      "선발 투수들의 전반적인 불확실성"
+    ],
+    "model_probs": {
+      "xgboost": 0.5,
+      "elo": 0.5525572120541438,
+      "ensemble": 0.5,
+      "ai_combined": 0.45170849444164546
+    },
+    "created_at": "2026-04-02T15:59:07.721989",
+    "actual_winner": null
+  },
+  {
+    "date": "2026-04-02",
+    "home_team": "SSG",
+    "away_team": "Heroes",
+    "predicted_winner": "SSG",
+    "home_win_probability": 0.53,
+    "confidence": "medium",
+    "key_factors": [
+      "SSG 선발투수 최민준의 2025시즌 성적 우위",
+      "SSG의 최근 10경기 및 시즌 초반 모멘텀",
+      "홈 어드밴티지",
+      "시즌 초반 데이터의 낮은 신뢰도 및 소표본 문제"
+    ],
+    "model_probs": {
+      "xgboost": 0.5,
+      "elo": 0.5524357487987704,
+      "ensemble": 0.5,
+      "ai_combined": 0.4517974836445311
+    },
+    "created_at": "2026-04-02T16:05:28.516966",
+    "actual_winner": null
+  },
+  {
+    "date": "2026-04-02",
+    "home_team": "NC",
+    "away_team": "롯데",
+    "predicted_winner": "NC",
+    "home_win_probability": 0.52,
+    "confidence": "low",
+    "key_factors": [
+      "롯데 선발 김진욱의 지난 시즌 저조한 성적",
+      "NC 선발 버하겐의 KBO 데뷔전 불확실성 및 적응 리스크",
+      "NC의 최근 좋은 팀 분위기 및 홈 이점",
+      "시즌 초반 데이터의 소표본 편향 및 회귀 가능성"
+    ],
+    "model_probs": {
+      "xgboost": 0.5,
+      "elo": 0.5751189503477463,
+      "ensemble": 0.5,
+      "ai_combined": 0.43523827798617576
+    },
+    "created_at": "2026-04-02T16:05:29.690528",
+    "actual_winner": null
+  },
+  {
+    "date": "2026-04-02",
+    "home_team": "삼성",
+    "away_team": "두산",
+    "predicted_winner": "두산",
+    "home_win_probability": 0.49,
+    "confidence": "low",
+    "key_factors": [
+      "시즌 초반 데이터의 극심한 불확실성",
+      "양 팀 선발투수의 유사한 리그 평균 이하 성적",
+      "양 팀 모두 7점대 팀 ERA로 인한 높은 경기 변동성",
+      "삼성의 최근 4경기 3패로 인한 모멘텀 하락"
+    ],
+    "model_probs": {
+      "xgboost": 0.5,
+      "elo": 0.56849460001181,
+      "ensemble": 0.5,
+      "ai_combined": 0.44006095634336434
+    },
+    "created_at": "2026-04-02T16:05:31.827792",
+    "actual_winner": null
+  },
+  {
+    "date": "2026-04-02",
+    "home_team": "한화",
+    "away_team": "KT",
+    "predicted_winner": "KT",
+    "home_win_probability": 0.49,
+    "confidence": "low",
+    "key_factors": [
+      "시즌 초반 데이터의 높은 불확실성",
+      "ML 모델들의 0.500 근접 예측",
+      "KT의 근소한 ELO 레이팅 우위",
+      "선발투수 문동주의 FIP 우위와 오원석의 안정적인 WAR"
+    ],
+    "model_probs": {
+      "xgboost": 0.5,
+      "elo": 0.46245633319806984,
+      "ensemble": 0.5,
+      "ai_combined": 0.5151187759070633
+    },
+    "created_at": "2026-04-02T16:05:34.560926",
+    "actual_winner": null
   }
 ]

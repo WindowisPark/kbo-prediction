@@ -16,10 +16,10 @@ Phase2 결과만 Synthesizer에 전달 (Phase1은 이미 반영됨 → 토큰 40
 
 | Agent | LLM | temp | 역할 |
 |-------|-----|------|------|
-| Analyst | GPT-4o | 0.4 | 통계 해석, ML 교차검증 |
-| Scout | Claude Haiku | 0.4 | 맥락, 용병, 신인, 매치업 |
-| Critic | GPT-4-turbo | 0.4 | 반론, 불확실성, Devil's Advocate |
-| Synthesizer | GPT-4o | 0.1 | 최종 JSON 출력 |
+| Analyst | Gemini 2.5 Flash | 0.4 | 수학/추론, 통계 분석 |
+| Scout | GPT-4o | 0.4 | 한국어 맥락, KBO 도메인 지식 |
+| Critic | Claude Sonnet 4 | 0.4 | 비판적 사고, sycophancy 방지 |
+| Synthesizer | Gemini 2.5 Flash | 0.1 | 최종 JSON 출력 |
 
 ## 컨텍스트 주입 체계
 
@@ -64,4 +64,6 @@ Phase2 결과만 Synthesizer에 전달 (Phase1은 이미 반영됨 → 토큰 40
 | Phase2 (2R) | 6 | 30 | 900 |
 | Synthesizer | 1 | 5 | 150 |
 | **합계** | **11** | **55** | **~1,650** |
-| **비용** | ~$0.36 | ~$1.8 | **~$54** |
+| **비용** | ~$0.30 | ~$1.5 | **~$45** |
+
+*Gemini 2.5 Flash 기반 Analyst/Synthesizer로 비용 절감 (기존 GPT-4o 대비)*
