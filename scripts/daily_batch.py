@@ -180,9 +180,91 @@ def step3_update_elo(completed: list[dict]):
         logger.info(f"    {i}. {team:10s} {rating:.0f}")
 
 
-def step4_append_games(completed: list[dict]):
+def step4_update_standings(completed: list[dict]):
+    """시즌 순위표 + 연승/연패 갱신 → data/standings.json 저장."""
+    logger.info("Step 4: Updating standings")
+    results_file = ROOT / "data" / "daily_results.jsonl"
+    if not results_file.exists():
+        logger.warning("  daily_results.jsonl not found, skipping")
+        return
+
+    current_season = str(datetime.now().year)
+    games = []
+    for line in results_file.read_text(encoding="utf-8").strip().split("\n"):
+        if line:
+            g = json.loads(line)
+            if g["date"].startswith(current_season):
+                games.append(g)
+
+    games.sort(key=lambda g: g["date"])
+
+    team_stats: dict[str, dict] = {}
+    for g in games:
+        home = unify_team(g["home_team"])
+        away = unify_team(g["away_team"])
+        hs, as_ = g["home_score"], g["away_score"]
+
+        for t in [home, away]:
+            if t not in team_stats:
+                team_stats[t] = {"wins": 0, "losses": 0, "draws": 0, "results": []}
+
+        if hs > as_:
+            team_stats[home]["wins"] += 1
+            team_stats[home]["results"].append("W")
+            team_stats[away]["losses"] += 1
+            team_stats[away]["results"].append("L")
+        elif hs < as_:
+            team_stats[away]["wins"] += 1
+            team_stats[away]["results"].append("W")
+            team_stats[home]["losses"] += 1
+            team_stats[home]["results"].append("L")
+        else:
+            team_stats[home]["draws"] += 1
+            team_stats[home]["results"].append("D")
+            team_stats[away]["draws"] += 1
+            team_stats[away]["results"].append("D")
+
+    standings = {}
+    for team, s in team_stats.items():
+        total = s["wins"] + s["losses"]
+        win_pct = round(s["wins"] / total, 3) if total > 0 else 0.5
+
+        # 연승/연패 계산
+        streak = 0
+        for r in reversed(s["results"]):
+            if r == "D":
+                continue
+            if streak == 0:
+                streak = 1 if r == "W" else -1
+            elif (streak > 0 and r == "W") or (streak < 0 and r == "L"):
+                streak += 1 if streak > 0 else -1
+            else:
+                break
+
+        standings[team] = {
+            "wins": s["wins"],
+            "losses": s["losses"],
+            "draws": s["draws"],
+            "games_played": s["wins"] + s["losses"] + s["draws"],
+            "win_pct": win_pct,
+            "streak": streak,
+        }
+        logger.info(f"  {team:6s} {s['wins']}W-{s['losses']}L-{s['draws']}D "
+                    f"({win_pct:.3f}) streak={streak:+d}")
+
+    standings_file = ROOT / "data" / "standings.json"
+    output = {
+        "season": int(current_season),
+        "updated_at": datetime.now().isoformat(),
+        "teams": standings,
+    }
+    standings_file.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info(f"  Standings saved ({len(standings)} teams)")
+
+
+def step5_append_games(completed: list[dict]):
     """경기 결과를 메인 CSV에 추가."""
-    logger.info("Step 4: Appending games to dataset")
+    logger.info("Step 5: Appending games to dataset")
     import pandas as pd
 
     games_file = ROOT / "data" / "raw" / "kbo_games_2000_2025.csv"
@@ -215,9 +297,9 @@ def step4_append_games(completed: list[dict]):
         logger.info("  No new games to add")
 
 
-def step5_summary():
+def step6_summary():
     """일일 요약 리포트."""
-    logger.info("Step 5: Daily summary")
+    logger.info("Step 6: Daily summary")
     history_file = ROOT / "data" / "prediction_history.json"
     if not history_file.exists():
         return
@@ -270,13 +352,16 @@ def main():
         # Step 3: ELO 갱신
         step3_update_elo(completed)
 
-        # Step 4: 데이터셋 추가
-        step4_append_games(completed)
-    else:
-        logger.info("No completed games found — skipping steps 2-4")
+        # Step 4: 순위표 + 연승/연패 갱신
+        step4_update_standings(completed)
 
-    # Step 5: 요약
-    step5_summary()
+        # Step 5: 데이터셋 추가
+        step5_append_games(completed)
+    else:
+        logger.info("No completed games found — skipping steps 2-5")
+
+    # Step 6: 요약
+    step6_summary()
 
     logger.info("=" * 60)
     logger.info("KBO Daily Batch Complete")

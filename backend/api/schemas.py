@@ -48,6 +48,10 @@ class PredictionResponse(BaseModel):
 class TeamInfo(BaseModel):
     team: str
     elo: float
+    wins: int = 0
+    losses: int = 0
+    draws: int = 0
+    games_played: int = 0
     recent_win_pct: float
     streak: int
 

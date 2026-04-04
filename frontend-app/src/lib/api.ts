@@ -5,6 +5,10 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 export interface TeamInfo {
   team: string;
   elo: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  games_played: number;
   recent_win_pct: number;
   streak: number;
 }

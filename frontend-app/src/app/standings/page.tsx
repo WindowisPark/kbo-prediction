@@ -5,7 +5,7 @@ import Image from "next/image";
 import { getTeam } from "@/lib/teams";
 import { API_URL } from "@/lib/config";
 
-interface TeamInfo { team: string; elo: number; recent_win_pct: number; streak: number; }
+interface TeamInfo { team: string; elo: number; wins: number; losses: number; draws: number; games_played: number; recent_win_pct: number; streak: number; }
 
 export default function StandingsPage() {
   const [teams, setTeams] = useState<TeamInfo[]>([]);
@@ -77,9 +77,21 @@ export default function StandingsPage() {
                   <Image src={meta.emblem} alt={t.team} width={40} height={40} className="shrink-0" />
 
                   {/* 팀명 */}
-                  <div className="w-28 sm:w-36 shrink-0">
+                  <div className="w-20 sm:w-36 shrink-0">
                     <div className="font-bold text-sm">{meta.name}</div>
                     <div className="text-xs text-[#64748b] font-mono">{meta.short}</div>
+                  </div>
+
+                  {/* 승-패-무 */}
+                  <div className="w-20 sm:w-24 text-center shrink-0">
+                    <div className="text-[10px] text-[#64748b] mb-0.5 hidden sm:block">성적</div>
+                    <div className="font-mono text-sm">
+                      <span className="text-emerald-400">{t.wins}</span>
+                      <span className="text-[#475569]">-</span>
+                      <span className="text-red-400">{t.losses}</span>
+                      <span className="text-[#475569]">-</span>
+                      <span className="text-[#94a3b8]">{t.draws}</span>
+                    </div>
                   </div>
 
                   {/* ELO 바 — 모바일 숨김 */}

@@ -350,60 +350,12 @@ async def predict_batch(req: BatchPredictionRequest, tier: str = Depends(get_use
 
 
 def _load_season_stats() -> dict:
-    """daily_results.jsonl에서 현재 시즌 팀별 승률/연승 계산."""
-    results_file = ROOT / "data" / "daily_results.jsonl"
-    if not results_file.exists():
+    """data/standings.json에서 사전 계산된 시즌 스탯 로드."""
+    standings_file = ROOT / "data" / "standings.json"
+    if not standings_file.exists():
         return {}
-
-    games = []
-    for line in results_file.read_text(encoding="utf-8").strip().split("\n"):
-        if line:
-            games.append(json.loads(line))
-
-    games.sort(key=lambda g: g["date"])
-
-    team_stats: dict[str, dict] = {}
-    for g in games:
-        home = unify_team(g["home_team"])
-        away = unify_team(g["away_team"])
-        hs, as_ = g["home_score"], g["away_score"]
-
-        for t in [home, away]:
-            if t not in team_stats:
-                team_stats[t] = {"wins": 0, "losses": 0, "draws": 0, "results": []}
-
-        if hs > as_:
-            team_stats[home]["wins"] += 1
-            team_stats[home]["results"].append("W")
-            team_stats[away]["losses"] += 1
-            team_stats[away]["results"].append("L")
-        elif hs < as_:
-            team_stats[away]["wins"] += 1
-            team_stats[away]["results"].append("W")
-            team_stats[home]["losses"] += 1
-            team_stats[home]["results"].append("L")
-        else:
-            team_stats[home]["draws"] += 1
-            team_stats[home]["results"].append("D")
-            team_stats[away]["draws"] += 1
-            team_stats[away]["results"].append("D")
-
-    for s in team_stats.values():
-        total = s["wins"] + s["losses"]
-        s["win_pct"] = round(s["wins"] / total, 3) if total > 0 else 0.5
-        streak = 0
-        for r in reversed(s["results"]):
-            if r == "D":
-                continue
-            if streak == 0:
-                streak = 1 if r == "W" else -1
-            elif (streak > 0 and r == "W") or (streak < 0 and r == "L"):
-                streak += 1 if streak > 0 else -1
-            else:
-                break
-        s["streak"] = streak
-
-    return team_stats
+    data = json.loads(standings_file.read_text(encoding="utf-8"))
+    return data.get("teams", {})
 
 
 @app.get("/standings", response_model=StandingsResponse)
@@ -421,6 +373,10 @@ async def get_standings(tier: str = Depends(get_user_tier)):
         teams.append(TeamInfo(
             team=team,
             elo=round(row["elo"], 1),
+            wins=stats.get("wins", 0),
+            losses=stats.get("losses", 0),
+            draws=stats.get("draws", 0),
+            games_played=stats.get("games_played", 0),
             recent_win_pct=round(stats.get("win_pct", 0.5), 3),
             streak=stats.get("streak", 0),
         ))
