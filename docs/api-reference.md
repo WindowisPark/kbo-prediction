@@ -124,13 +124,23 @@ Response (티어에 따라 필터링):
 ### POST /today/predict
 당일 전 경기 일괄 분석.
 
+### GET /schedule/{date}
+특정 날짜 경기 일정. date: YYYYMMDD.
+```json
+{"date": "20260401", "games": [...]}
+```
+
 ### GET /standings
-ELO 순위.
+ELO 순위 + 시즌 성적.
 ```json
 {
   "season": 2026,
   "teams": [
-    {"team": "KT", "elo": 1541.0, "recent_win_pct": 0.7, "streak": 4}
+    {
+      "team": "KT", "elo": 1541.0,
+      "wins": 5, "losses": 1, "draws": 0, "games_played": 6,
+      "recent_win_pct": 0.833, "streak": 4
+    }
   ]
 }
 ```

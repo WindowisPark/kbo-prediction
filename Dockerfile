@@ -12,9 +12,13 @@ COPY config/ config/
 COPY scripts/ scripts/
 COPY data/processed/ data/processed/
 COPY data/features/ data/features/
+COPY data/standings.json data/
+COPY data/elo_ratings.json data/
+COPY data/daily_results.jsonl data/
+COPY data/raw/kbo_games_2000_2025.csv data/raw/
 
 # 런타임 데이터 디렉토리
-RUN mkdir -p data/cache data/models
+RUN mkdir -p data/cache data/models data/raw
 
 EXPOSE 8000
 

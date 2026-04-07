@@ -7,7 +7,7 @@
   Phase 3: Synthesizer가 최종 종합
 
 모델 배정 (3-provider 다양성):
-  - Analyst (Gemini 2.5 Flash): 수학/추론, 통계 분석
+  - Analyst (Gemini 2.5 Pro): 수학/추론, 통계 분석
   - Scout (GPT-4o): 한국어 맥락, KBO 도메인 지식
   - Critic (Claude Sonnet 4): 비판적 사고, sycophancy 방지
   - Synthesizer (Gemini 2.5 Flash): JSON 출력, 종합
@@ -47,6 +47,8 @@ class GameContext:
     home_era: float = 0.0
     away_era: float = 0.0
     h2h_win_pct: float = 0.5
+    home_rank: int = 0
+    away_rank: int = 0
     extra_context: str = ""
 
     def to_prompt(self) -> str:
@@ -64,6 +66,7 @@ class GameContext:
 ## 팀 데이터
 | 지표 | {self.home_team} (홈) | {self.away_team} (원정) |
 |------|:---:|:---:|
+| 현재 순위 | {self.home_rank}위 | {self.away_rank}위 |
 | ELO 레이팅 | {self.home_elo:.0f} | {self.away_elo:.0f} |
 | 최근 10경기 승률 | {self.home_win_pct_10:.3f} | {self.away_win_pct_10:.3f} |
 | 연승/연패 | {self.home_streak:+d} | {self.away_streak:+d} |

@@ -160,7 +160,7 @@ class GamePredictor:
         # ELO
         elo_home = self.elo.ratings.get(home_team, {}).get("elo", 1500)
         elo_away = self.elo.ratings.get(away_team, {}).get("elo", 1500)
-        elo_prob = 1 / (1 + 10 ** ((elo_away - elo_home - 30) / 400))
+        elo_prob = 1 / (1 + 10 ** ((elo_away - elo_home - self.elo.home_adv) / 400))
 
         # Stacking (AI 종합)
         import numpy as np
@@ -198,6 +198,21 @@ class GamePredictor:
         if extra_context:
             full_context += f"\n\n### 추가 정보 (사용자 입력)\n{extra_context}"
 
+        # standings.json에서 순위 로드
+        home_rank, away_rank = 0, 0
+        standings_file = ROOT / "data" / "standings.json"
+        if standings_file.exists():
+            try:
+                standings_data = json.loads(standings_file.read_text(encoding="utf-8"))
+                teams_standings = standings_data.get("teams", {})
+                ranked = sorted(teams_standings.items(),
+                                key=lambda x: x[1].get("win_pct", 0), reverse=True)
+                rank_map = {t: i + 1 for i, (t, _) in enumerate(ranked)}
+                home_rank = rank_map.get(home_team, 0)
+                away_rank = rank_map.get(away_team, 0)
+            except (json.JSONDecodeError, KeyError):
+                pass
+
         context = GameContext(
             home_team=home_team,
             away_team=away_team,
@@ -217,6 +232,8 @@ class GamePredictor:
             home_era=home_ctx["era"],
             away_era=away_ctx["era"],
             h2h_win_pct=h2h,
+            home_rank=home_rank,
+            away_rank=away_rank,
             extra_context=full_context,
         )
 

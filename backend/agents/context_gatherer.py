@@ -10,8 +10,10 @@
 이 맥락이 에이전트의 extra_context로 주입되어
 ML 모델이 포착 못하는 현재 상황을 반영한다.
 """
+import json
 import logging
 from datetime import datetime
+from pathlib import Path
 
 from .llm_clients import GPTClient
 
@@ -85,6 +87,32 @@ def gather_context_from_data(
                         home_wins += 1
                 lines.append(f"\n### 올시즌 상대전적: {home_team} {home_wins}승 - {len(h2h)-home_wins}승 {away_team}")
         except (ValueError, KeyError):
+            pass
+
+    # standings.json 기반 KBO 순위표 (프론트엔드와 동일 소스)
+    standings_file = Path(__file__).parent.parent.parent / "data" / "standings.json"
+    if standings_file.exists():
+        try:
+            standings_data = json.loads(standings_file.read_text(encoding="utf-8"))
+            standings = standings_data.get("teams", {})
+            if standings:
+                ranked = sorted(standings.items(),
+                                key=lambda x: x[1].get("win_pct", 0), reverse=True)
+                season = standings_data.get("season", datetime.now().year)
+                lines.append(f"\n### {season} KBO 현재 순위표")
+                for i, (team, s) in enumerate(ranked, 1):
+                    streak = s.get("streak", 0)
+                    if streak > 0:
+                        streak_str = f"{streak}연승"
+                    elif streak < 0:
+                        streak_str = f"{abs(streak)}연패"
+                    else:
+                        streak_str = "-"
+                    lines.append(
+                        f"  {i}위 {team}: {s['wins']}승 {s['losses']}패 "
+                        f"{s['draws']}무 (승률 {s['win_pct']:.3f}) {streak_str}"
+                    )
+        except (json.JSONDecodeError, KeyError):
             pass
 
     # 올시즌 팀 스탯 (에이전트 맥락용 — ML 피처와 별도)
