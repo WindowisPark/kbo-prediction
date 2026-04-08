@@ -37,6 +37,8 @@ logger = logging.getLogger(__name__)
 
 from backend.scrapers.kbo_today import get_game_list, get_next_game_date
 from backend.utils.team_mapping import unify_team
+from backend.auth.database import SessionLocal
+from backend.auth.models import PredictionHistory
 
 
 def step1_collect_results(target_date: str) -> list[dict]:
@@ -118,6 +120,32 @@ def step2_update_predictions(completed: list[dict]):
 
     history_file.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
     logger.info(f"  Updated {updated} predictions")
+
+    # DB에도 actual_winner 반영
+    if pred_map:
+        db = SessionLocal()
+        try:
+            for pred in history:
+                key = f"{pred['date']}_{pred['home_team']}_{pred['away_team']}"
+                if key not in pred_map:
+                    continue
+                matched = pred_map[key]
+                row = db.query(PredictionHistory).filter(
+                    PredictionHistory.date == pred["date"],
+                    PredictionHistory.home_team == pred["home_team"],
+                    PredictionHistory.away_team == pred["away_team"],
+                    PredictionHistory.actual_winner.is_(None),
+                ).first()
+                if row:
+                    row.actual_winner = matched["actual_winner"]
+                    row.is_draw = matched.get("is_draw", False)
+            db.commit()
+            logger.info(f"  DB predictions updated")
+        except Exception as e:
+            logger.warning(f"  DB update failed (non-critical): {e}")
+            db.rollback()
+        finally:
+            db.close()
 
     # 적중률 계산 (무승부 제외, 경기별 최신 예측만)
     verified = [p for p in unique_preds if p.get("actual_winner") and not p.get("is_draw")]

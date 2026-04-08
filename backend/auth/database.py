@@ -7,11 +7,14 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/kbo_auth.db")
 
+# asyncpg → psycopg2 변환 (동기 엔진용)
+_sync_url = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+
 # SQLite 호환
-if DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+if _sync_url.startswith("sqlite"):
+    engine = create_engine(_sync_url, connect_args={"check_same_thread": False})
 else:
-    engine = create_engine(DATABASE_URL)
+    engine = create_engine(_sync_url)
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
