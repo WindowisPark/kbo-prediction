@@ -17,7 +17,7 @@ import re
 import logging
 from dataclasses import dataclass, field
 
-from .llm_clients import get_client
+from .llm_clients import get_client, chat_with_fallback
 from .prompts import (
     ANALYST_SYSTEM, SCOUT_SYSTEM, CRITIC_SYSTEM,
     SYNTHESIZER_SYSTEM, DEBATE_ROUND_PROMPT,
@@ -151,7 +151,7 @@ class DebatePipeline:
         system = self.agents.get(agent_name, {}).get("system", "")
         if not system:
             system = SYNTHESIZER_SYSTEM
-        response = client.chat(system, user_msg)
+        response = chat_with_fallback(client, system, user_msg)
         return response, client.provider
 
     def run_phase1(self, context: GameContext) -> list[AgentResponse]:
@@ -235,7 +235,7 @@ class DebatePipeline:
 위 토론을 종합하여 최종 예측을 JSON 형식으로 출력하세요."""
 
         client = get_client("Synthesizer")
-        content = client.chat(SYNTHESIZER_SYSTEM, prompt, max_tokens=2048)
+        content = chat_with_fallback(client, SYNTHESIZER_SYSTEM, prompt, max_tokens=2048)
 
         # JSON 파싱 — ```json 블록 우선, fallback으로 최대 {} 블록
         result = {}

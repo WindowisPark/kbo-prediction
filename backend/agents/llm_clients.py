@@ -2,13 +2,15 @@
 멀티 LLM 클라이언트 — 3-provider 통합 인터페이스.
 
 에이전트별 최적 모델 배정 (논문 기반):
-  - Analyst: Gemini 2.5 Flash (수학/추론 A, 저비용)
+  - Analyst: Gemini 2.5 Pro (수학/추론 A, 저비용)
   - Scout: GPT-4o (한국어 A+, KBO 도메인 지식)
   - Critic: Claude Sonnet 4 (비판적 사고 A+, sycophancy 방지)
   - Synthesizer: Gemini 2.5 Flash (JSON 안정적, 극저비용)
 
 3-provider 다양성: Google + OpenAI + Anthropic
 ReConcile 논문: 다른 모델 3개 > 같은 모델 5개
+
+Provider fallback: Gemini 503 → Claude/GPT 자동 전환
 """
 import os
 import time
@@ -21,6 +23,14 @@ logger = logging.getLogger(__name__)
 
 from backend.utils.cost_tracker import log_cost
 
+# 503/429 등 일시적 에러 판별
+_TRANSIENT_KEYWORDS = ("503", "429", "UNAVAILABLE", "overloaded", "rate limit", "quota")
+
+
+def _is_transient(exc: Exception) -> bool:
+    msg = str(exc)
+    return any(kw in msg for kw in _TRANSIENT_KEYWORDS)
+
 
 class ClaudeClient:
     def __init__(self, model: str = "claude-sonnet-4-20250514", temperature: float = 0.4):
@@ -31,7 +41,8 @@ class ClaudeClient:
         self.provider = f"anthropic/{model.split('-')[1]}"
 
     def chat(self, system: str, user_msg: str, max_tokens: int = 1024) -> str:
-        for attempt in range(3):
+        max_retries = 5
+        for attempt in range(max_retries):
             try:
                 response = self.client.messages.create(
                     model=self.model,
@@ -44,9 +55,9 @@ class ClaudeClient:
                 log_cost(self.model, usage.input_tokens, usage.output_tokens, "claude")
                 return response.content[0].text
             except Exception as e:
-                if attempt < 2:
-                    wait = 2 ** (attempt + 1)
-                    logger.warning(f"Claude error (attempt {attempt+1}): {e}. Retry in {wait}s")
+                if attempt < max_retries - 1 and _is_transient(e):
+                    wait = min(2 ** (attempt + 1), 32)
+                    logger.warning(f"Claude error (attempt {attempt+1}/{max_retries}): {e}. Retry in {wait}s")
                     time.sleep(wait)
                 else:
                     raise
@@ -61,7 +72,8 @@ class GPTClient:
         self.provider = f"openai/{model}"
 
     def chat(self, system: str, user_msg: str, max_tokens: int = 1024) -> str:
-        for attempt in range(3):
+        max_retries = 5
+        for attempt in range(max_retries):
             try:
                 response = self.client.chat.completions.create(
                     model=self.model,
@@ -76,9 +88,9 @@ class GPTClient:
                 log_cost(self.model, usage.prompt_tokens, usage.completion_tokens, "gpt")
                 return response.choices[0].message.content
             except Exception as e:
-                if attempt < 2:
-                    wait = 2 ** (attempt + 1)
-                    logger.warning(f"GPT error (attempt {attempt+1}): {e}. Retry in {wait}s")
+                if attempt < max_retries - 1 and _is_transient(e):
+                    wait = min(2 ** (attempt + 1), 32)
+                    logger.warning(f"GPT error (attempt {attempt+1}/{max_retries}): {e}. Retry in {wait}s")
                     time.sleep(wait)
                 else:
                     raise
@@ -94,7 +106,8 @@ class GeminiClient:
 
     def chat(self, system: str, user_msg: str, max_tokens: int = 1024) -> str:
         from google.genai import types
-        for attempt in range(3):
+        max_retries = 5
+        for attempt in range(max_retries):
             try:
                 config = types.GenerateContentConfig(
                     system_instruction=system,
@@ -117,12 +130,20 @@ class GeminiClient:
                 logger.debug(f"Gemini response: {len(text)} chars")
                 return text
             except Exception as e:
-                if attempt < 2:
-                    wait = 2 ** (attempt + 1)
-                    logger.warning(f"Gemini error (attempt {attempt+1}): {e}. Retry in {wait}s")
+                if attempt < max_retries - 1 and _is_transient(e):
+                    wait = min(2 ** (attempt + 1), 32)
+                    logger.warning(f"Gemini error (attempt {attempt+1}/{max_retries}): {e}. Retry in {wait}s")
                     time.sleep(wait)
                 else:
                     raise
+
+
+# Provider fallback 매핑: primary 실패 시 대체 provider
+_FALLBACK_MAP = {
+    "gemini": lambda temp: ClaudeClient("claude-sonnet-4-20250514", temp),
+    "claude": lambda temp: GPTClient("gpt-4o", temp),
+    "openai": lambda temp: ClaudeClient("claude-sonnet-4-20250514", temp),
+}
 
 
 # 싱글턴 캐시
@@ -141,3 +162,22 @@ def get_client(agent_name: str):
         config = AGENT_CONFIG.get(agent_name, {"factory": lambda t: GeminiClient(temperature=t), "temperature": 0.4})
         _client_cache[agent_name] = config["factory"](config["temperature"])
     return _client_cache[agent_name]
+
+
+def chat_with_fallback(client, system: str, user_msg: str, max_tokens: int = 1024) -> str:
+    """Primary client로 호출 시도, 실패 시 다른 provider로 fallback."""
+    try:
+        return client.chat(system, user_msg, max_tokens)
+    except Exception as e:
+        provider_key = client.provider.split("/")[0]  # "gemini", "openai", "anthropic"
+        if provider_key == "anthropic":
+            provider_key = "claude"
+        fallback_factory = _FALLBACK_MAP.get(provider_key)
+        if fallback_factory is None:
+            raise
+        logger.warning(
+            f"{client.provider} failed after retries: {e}. "
+            f"Falling back to alternative provider."
+        )
+        fallback_client = fallback_factory(client.temperature)
+        return fallback_client.chat(system, user_msg, max_tokens)

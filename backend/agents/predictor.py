@@ -47,7 +47,7 @@ class GamePredictor:
     def load_models(self):
         """데이터 로드 + 모델 학습."""
         logger.info("Loading feature matrix...")
-        self.features_df = pd.read_csv(self.features_path)
+        self.features_df = pd.read_csv(self.features_path, low_memory=False)
         self.features_df["date"] = pd.to_datetime(self.features_df["date"])
 
         # 2001~2024로 학습 (2025는 예측 대상)
