@@ -377,7 +377,7 @@ async def get_standings(tier: str = Depends(get_user_tier)):
             losses=stats.get("losses", 0),
             draws=stats.get("draws", 0),
             games_played=stats.get("games_played", 0),
-            recent_win_pct=round(stats.get("win_pct", 0.5), 3),
+            recent_win_pct=round(stats.get("recent_win_pct", stats.get("win_pct", 0.5)), 3),
             streak=stats.get("streak", 0),
         ))
 

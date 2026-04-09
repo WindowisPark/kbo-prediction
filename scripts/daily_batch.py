@@ -257,6 +257,13 @@ def step4_update_standings(completed: list[dict]):
         total = s["wins"] + s["losses"]
         win_pct = round(s["wins"] / total, 3) if total > 0 else 0.5
 
+        # 최근 10경기 승률
+        recent = s["results"][-10:]
+        recent_w = sum(1 for r in recent if r == "W")
+        recent_l = sum(1 for r in recent if r == "L")
+        recent_total = recent_w + recent_l  # 무승부 제외
+        recent_win_pct = round(recent_w / recent_total, 3) if recent_total > 0 else 0.5
+
         # 연승/연패 계산
         streak = 0
         for r in reversed(s["results"]):
@@ -275,10 +282,11 @@ def step4_update_standings(completed: list[dict]):
             "draws": s["draws"],
             "games_played": s["wins"] + s["losses"] + s["draws"],
             "win_pct": win_pct,
+            "recent_win_pct": recent_win_pct,
             "streak": streak,
         }
         logger.info(f"  {team:6s} {s['wins']}W-{s['losses']}L-{s['draws']}D "
-                    f"({win_pct:.3f}) streak={streak:+d}")
+                    f"({win_pct:.3f}) recent10={recent_win_pct:.3f} streak={streak:+d}")
 
     standings_file = ROOT / "data" / "standings.json"
     output = {
