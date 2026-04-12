@@ -85,20 +85,40 @@ def lookup_starter(
         if len(match) > 1:
             match = match.sort_values("GS", ascending=False).head(1)
 
-    # 3차: name만 (올시즌 아직 기록 없는 경우 — 최근 시즌)
+    # 3차: name + team (올시즌 아직 기록 없지만 같은 팀 과거 기록)
     if match.empty:
-        match = df[df["Name"] == name].sort_values("Year", ascending=False).head(1)
-        if not match.empty and match.iloc[0]["Year"] < year - 2:
-            match = pd.DataFrame()  # 2년 이상 전 기록은 무시
+        match = df[(df["Name"] == name) & (df["Team"] == team_raw)].sort_values("Year", ascending=False).head(1)
+        if not match.empty and match.iloc[0]["Year"] < year - 3:
+            match = pd.DataFrame()
+
+    # 4차: name만 (이적/복귀 — MLB/군 복무 등 3년 공백까지 허용)
+    # 외국인은 동명이인 위험이 높으므로 team이 다르면 스킵
+    if match.empty:
+        candidates = df[df["Name"] == name].sort_values("Year", ascending=False)
+        if not candidates.empty:
+            top = candidates.iloc[0]
+            is_foreign_player = detect_foreign(str(top.get("Draft", "")))
+            same_team = top["Team"] == team_raw
+            # 외국인 동명이인: 팀이 다르고 외국인이면 매칭하지 않음
+            if is_foreign_player and not same_team:
+                match = pd.DataFrame()
+            elif top["Year"] >= year - 3:
+                match = candidates.head(1)
+            else:
+                match = pd.DataFrame()
 
     if match.empty:
         return None
 
     row = match.iloc[0]
+    stats_year = int(row["Year"])
     draft = str(row.get("Draft", ""))
     foreign = detect_foreign(draft)
     rookie = detect_rookie(draft, year)
     debut_foreign = is_debut_foreign(name, year, df)
+
+    # 복귀 선수 판별: 과거 기록은 있지만 올시즌/직전 시즌 기록 없음
+    is_returning = stats_year < year - 1 and not foreign
 
     result = {
         "name": name,
@@ -114,6 +134,7 @@ def lookup_starter(
         "is_foreign": foreign,
         "is_rookie": rookie,
         "is_debut_foreign": debut_foreign,
+        "is_returning": is_returning,
         "prev_season": None,
     }
 
@@ -167,6 +188,10 @@ def format_starter_info(info: dict | None, side: str) -> str:
         flags.append("외국인 선수")
     if info["is_rookie"]:
         flags.append("신인")
+    if info.get("is_returning"):
+        from datetime import datetime as _dt
+        gap = _dt.now().year - info["stats_year"]
+        flags.append(f"복귀 선수 ({info['stats_year']}시즌 이후 {gap}년 공백 — 과거 실적 참고, 현재 컨디션 불확실)")
 
     if flags:
         lines.append(f"- 상태: {', '.join(flags)}")
