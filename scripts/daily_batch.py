@@ -368,7 +368,37 @@ def step5_append_games(completed: list[dict]):
         logger.info("  No new games to add")
 
 
-def step6_summary():
+def step6_rebuild_features():
+    """피처 매트릭스 재빌드 — XGBoost/LGBM이 최신 데이터를 사용하도록."""
+    logger.info("Step 6: Rebuilding feature matrix")
+    games_file = ROOT / "data" / "raw" / "kbo_games_2000_2025.csv"
+    batting_file = ROOT / "data" / "processed" / "batting_2000_2025.csv"
+    pitching_file = ROOT / "data" / "processed" / "pitching_2000_2025.csv"
+    output_file = ROOT / "data" / "features" / "game_features_v5.csv"
+
+    if not games_file.exists():
+        logger.warning("  games CSV not found, skipping feature rebuild")
+        return
+    if not batting_file.exists() or not pitching_file.exists():
+        logger.warning("  batting/pitching CSV not found, skipping feature rebuild")
+        return
+
+    try:
+        from backend.features.build_features import build_feature_matrix
+        df = build_feature_matrix(
+            games_path=games_file,
+            batting_path=batting_file,
+            pitching_path=pitching_file,
+            output_path=output_file,
+        )
+        current_season = datetime.now().year
+        season_rows = len(df[df["season"] == current_season])
+        logger.info(f"  Feature matrix rebuilt: {len(df)} total, {season_rows} current season")
+    except Exception as e:
+        logger.warning(f"  Feature rebuild failed (non-critical): {e}")
+
+
+def step7_summary():
     """일일 요약 리포트."""
     logger.info("Step 6: Daily summary")
     history_file = ROOT / "data" / "prediction_history.json"
@@ -428,11 +458,14 @@ def main():
 
         # Step 5: 데이터셋 추가
         step5_append_games(completed)
-    else:
-        logger.info("No completed games found — skipping steps 2-5")
 
-    # Step 6: 요약
-    step6_summary()
+        # Step 6: 피처 매트릭스 재빌드
+        step6_rebuild_features()
+    else:
+        logger.info("No completed games found — skipping steps 2-6")
+
+    # Step 7: 요약
+    step7_summary()
 
     logger.info("=" * 60)
     logger.info("KBO Daily Batch Complete")

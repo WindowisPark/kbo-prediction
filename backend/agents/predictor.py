@@ -126,6 +126,127 @@ class GamePredictor:
             }
         return {"elo": 1500, "win_pct_10": 0.5, "streak": 0, "ops": 0, "era": 0}
 
+    def _build_live_features(self, home_team: str, away_team: str, date: str) -> pd.DataFrame:
+        """피처 매트릭스에 없는 경기의 피처를 실시간 생성."""
+        import json as _json
+        from datetime import datetime as _dt
+
+        # 기존 피처 매트릭스에서 최근 경기 기반 rolling stats 계산
+        df = self.features_df
+        all_games = df.sort_values("date")
+
+        # 팀별 최근 경기에서 rolling stats 추출
+        def get_team_rolling(team, side):
+            if side == "home":
+                team_games = all_games[all_games["home_team"] == team]
+            else:
+                team_games = all_games[all_games["away_team"] == team]
+            # 홈/원정 무관하게 최근 경기
+            as_home = all_games[all_games["home_team"] == team].tail(30)
+            as_away = all_games[all_games["away_team"] == team].tail(30)
+            return as_home, as_away
+
+        home_h, home_a = get_team_rolling(home_team, "home")
+        away_h, away_a = get_team_rolling(away_team, "away")
+
+        # 최근 경기에서 피처값 가져오기 (가장 최근 행)
+        feat = {}
+
+        # 홈팀 — 마지막으로 홈으로 뛴 경기의 홈 피처 사용
+        if not home_h.empty:
+            last_h = home_h.iloc[-1]
+            for col in ["home_win_pct_10", "home_win_pct_20", "home_win_pct_30",
+                         "home_run_diff_10", "home_run_diff_20", "home_run_diff_30",
+                         "home_runs_for_10", "home_runs_against_10",
+                         "home_streak", "home_home_win_pct",
+                         "home_elo", "home_ops", "home_era",
+                         "home_sp_era", "home_sp_fip", "home_sp_war", "home_sp_whip",
+                         "home_war", "home_war_pit", "home_wrc_plus",
+                         "home_obp", "home_slg", "home_hr", "home_fip", "home_whip"]:
+                feat[col] = last_h.get(col, np.nan)
+        # 홈팀이 원정으로 뛴 최근 경기에서 보충
+        if not home_a.empty and any(pd.isna(feat.get(c, np.nan)) for c in ["home_win_pct_10"]):
+            last_a = home_a.iloc[-1]
+            for hcol, acol in [("home_win_pct_10", "away_win_pct_10"),
+                                ("home_run_diff_10", "away_run_diff_10"),
+                                ("home_streak", "away_streak")]:
+                if pd.isna(feat.get(hcol, np.nan)):
+                    feat[hcol] = last_a.get(acol, np.nan)
+
+        # 원정팀 — 마지막으로 원정으로 뛴 경기의 원정 피처
+        if not away_h.empty:
+            # 원정팀이 홈으로 뛴 경기도 참고
+            last_away_as_away = all_games[all_games["away_team"] == away_team].tail(1)
+            if not last_away_as_away.empty:
+                last_aa = last_away_as_away.iloc[-1]
+                for col in ["away_win_pct_10", "away_win_pct_20", "away_win_pct_30",
+                             "away_run_diff_10", "away_run_diff_20", "away_run_diff_30",
+                             "away_runs_for_10", "away_runs_against_10",
+                             "away_streak", "away_away_win_pct",
+                             "away_elo", "away_ops", "away_era",
+                             "away_sp_era", "away_sp_fip", "away_sp_war", "away_sp_whip",
+                             "away_war", "away_war_pit", "away_wrc_plus",
+                             "away_obp", "away_slg", "away_hr", "away_fip", "away_whip"]:
+                    feat[col] = last_aa.get(col, np.nan)
+
+        # ELO — daily batch에서 갱신된 최신값 사용
+        feat["home_elo"] = self.elo.ratings.get(home_team, {}).get("elo", 1500)
+        feat["away_elo"] = self.elo.ratings.get(away_team, {}).get("elo", 1500)
+        feat["elo_diff"] = feat["home_elo"] - feat["away_elo"]
+        feat["elo_expected"] = 1 / (1 + 10 ** (-(feat["elo_diff"] + self.elo.home_adv) / 400))
+
+        # h2h
+        matchups = all_games[
+            ((all_games["home_team"] == home_team) & (all_games["away_team"] == away_team)) |
+            ((all_games["home_team"] == away_team) & (all_games["away_team"] == home_team))
+        ].tail(10)
+        if not matchups.empty:
+            home_wins = sum(
+                ((matchups["home_team"] == home_team) & (matchups["home_win"] == 1)) |
+                ((matchups["away_team"] == home_team) & (matchups["home_win"] == 0))
+            )
+            feat["h2h_win_pct"] = home_wins / len(matchups)
+            feat["h2h_count"] = len(matchups)
+        else:
+            feat["h2h_win_pct"] = 0.5
+            feat["h2h_count"] = 0
+
+        # 시간 피처
+        try:
+            dt = pd.Timestamp(date)
+            feat["month"] = dt.month
+            feat["day_of_week"] = dt.dayofweek
+            feat["is_weekend"] = 1 if dt.dayofweek in [5, 6] else 0
+            season_start = all_games[all_games["date"].dt.year == dt.year]["date"].min()
+            feat["days_into_season"] = (dt - season_start).days if pd.notna(season_start) else 30
+        except Exception:
+            feat["month"] = 4
+            feat["day_of_week"] = 0
+            feat["is_weekend"] = 0
+            feat["days_into_season"] = 30
+
+        # 차이 피처
+        for w in [10, 20, 30]:
+            h_wp = feat.get(f"home_win_pct_{w}", 0.5)
+            a_wp = feat.get(f"away_win_pct_{w}", 0.5)
+            feat[f"win_pct_diff_{w}"] = (h_wp if pd.notna(h_wp) else 0.5) - (a_wp if pd.notna(a_wp) else 0.5)
+            h_rd = feat.get(f"home_run_diff_{w}", 0)
+            a_rd = feat.get(f"away_run_diff_{w}", 0)
+            feat[f"run_diff_diff_{w}"] = (h_rd if pd.notna(h_rd) else 0) - (a_rd if pd.notna(a_rd) else 0)
+
+        feat["ops_diff"] = feat.get("home_ops", 0.72) - feat.get("away_ops", 0.72)
+        feat["era_diff"] = feat.get("away_era", 4.2) - feat.get("home_era", 4.2)
+        feat["sp_era_diff"] = feat.get("away_sp_era", 4.2) - feat.get("home_sp_era", 4.2)
+        feat["sp_war_diff"] = feat.get("home_sp_war", 0) - feat.get("away_sp_war", 0)
+        feat["bat_war_diff"] = feat.get("home_war", 0) - feat.get("away_war", 0)
+        feat["streak_diff"] = feat.get("home_streak", 0) - feat.get("away_streak", 0)
+        feat["home_away_split_diff"] = feat.get("home_home_win_pct", 0.5) - feat.get("away_away_win_pct", 0.5)
+
+        row = pd.DataFrame([feat])
+        logger.info(f"  Live features generated for {away_team} @ {home_team} "
+                     f"(elo_diff={feat['elo_diff']:.0f}, h_wp10={feat.get('home_win_pct_10', 'N/A')})")
+        return row
+
     def predict_game(self, home_team: str, away_team: str, date: str,
                      extra_context: str = "",
                      home_starter: str = "",
@@ -150,12 +271,13 @@ class GamePredictor:
 
         if not game_row.empty:
             row = game_row.iloc[[0]]
-            xgb_prob = float(self.xgb.predict_proba(row)[0])
-            bay_prob = float(self.bay.predict_proba(row)[0])
         else:
-            # 피처 데이터가 없으면 기본값
-            xgb_prob = 0.5
-            bay_prob = 0.5
+            # 피처 매트릭스에 없는 경기 → 실시간 피처 생성
+            logger.info(f"  No feature row found — building live features")
+            row = self._build_live_features(home_team, away_team, date)
+
+        xgb_prob = float(self.xgb.predict_proba(row)[0])
+        bay_prob = float(self.bay.predict_proba(row)[0])
 
         # ELO
         elo_home = self.elo.ratings.get(home_team, {}).get("elo", 1500)
