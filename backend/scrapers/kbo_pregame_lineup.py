@@ -204,13 +204,23 @@ def _collect_recent_lineups(
     return collected
 
 
+def _normalize_position(pos: str) -> str:
+    """수비 포지션을 정규화 (중복 판단용)."""
+    pos = pos.strip()
+    # 지명타자 계열은 하나로 통일
+    if pos in ("DH", "지명", "지명타자", "타자"):
+        return "DH"
+    return pos
+
+
 def _pick_lineup_no_duplicates(
     order_scores: dict[str, dict[str, float]],
 ) -> list[dict]:
     """
     타순별 가중 점수에서 중복 없이 최적 라인업 선택.
 
-    Greedy: 점수 높은 순으로 배정, 이미 선택된 선수는 스킵.
+    Greedy: 점수 높은 순으로 배정.
+    제약: 같은 선수 중복 금지 + 같은 수비 포지션 중복 금지.
     """
     # (order, name|pos, score) 전체를 모아서 점수 내림차순 정렬
     candidates = []
@@ -220,14 +230,21 @@ def _pick_lineup_no_duplicates(
     candidates.sort(key=lambda x: x[2], reverse=True)
 
     used_names: set[str] = set()
+    used_positions: set[str] = set()
     assigned: dict[str, tuple[str, float]] = {}  # order → (name_pos, score)
 
     for order, name_pos, score in candidates:
-        name = name_pos.split("|", 1)[0]
+        name, position = name_pos.split("|", 1)
+        norm_pos = _normalize_position(position)
+
         if order in assigned or name in used_names:
             continue
+        if norm_pos in used_positions:
+            continue
+
         assigned[order] = (name_pos, score)
         used_names.add(name)
+        used_positions.add(norm_pos)
 
     result = []
     for order in sorted(assigned.keys(), key=lambda x: int(x) if x.isdigit() else 99):
