@@ -600,8 +600,8 @@ async def game_lineup(game_id: str):
         matched = [g for g in games if g.get("game_id") == game_id]
         if matched:
             g = matched[0]
-            away_expected = get_expected_lineup(g["away_team"], num_games=5)
-            home_expected = get_expected_lineup(g["home_team"], num_games=5)
+            away_expected = get_expected_lineup(g["away_team"], num_games=10, is_home=False)
+            home_expected = get_expected_lineup(g["home_team"], num_games=10, is_home=True)
             if away_expected.get("lineup") or home_expected.get("lineup"):
                 return {
                     "game_id": game_id,

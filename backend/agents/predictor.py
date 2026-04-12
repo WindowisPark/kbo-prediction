@@ -38,6 +38,7 @@ class GamePredictor:
         self.debate_rounds = debate_rounds
         self.features_df = None
         self.pitcher_df = None
+        self.batting_df = None
         self.xgb = None
         self.elo = None
         self.bay = None
@@ -103,6 +104,12 @@ class GamePredictor:
         if pitcher_path.exists():
             self.pitcher_df = load_pitcher_data(pitcher_path)
             logger.info(f"Pitcher stats loaded ({len(self.pitcher_df)} records)")
+
+        # 타자 스탯 DB (좌우 매치업 분석용)
+        batting_path = ROOT / "data" / "processed" / "batting_2000_2025.csv"
+        if batting_path.exists():
+            self.batting_df = pd.read_csv(batting_path, encoding="utf-8-sig")
+            logger.info(f"Batting stats loaded ({len(self.batting_df)} records)")
 
         # Debate pipeline
         self.debate = DebatePipeline(debate_rounds=self.debate_rounds)
@@ -315,6 +322,7 @@ class GamePredictor:
             home_team_raw=home_team_raw,
             away_team_raw=away_team_raw,
             pitcher_df=self.pitcher_df,
+            batting_df=self.batting_df,
         )
         full_context = auto_context
         if extra_context:

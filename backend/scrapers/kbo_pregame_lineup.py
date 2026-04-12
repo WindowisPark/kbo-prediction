@@ -139,27 +139,28 @@ def format_lineup_context(lineup_data: dict) -> str:
     return "\n".join(lines)
 
 
-def get_expected_lineup(team_name: str, num_games: int = 5) -> dict:
+def _collect_recent_lineups(
+    team_name: str,
+    num_games: int = 10,
+    home_only: bool | None = None,
+) -> list[tuple[list[dict], float]]:
     """
-    최근 경기 라인업에서 예상 선발 타선 추론.
+    최근 경기 라인업을 수집 (가중치 포함).
 
-    최근 num_games 경기의 확정 라인업을 수집하여 포지션별 가장 빈번한 선수를 선발.
-    시즌 초(경기 부족)에는 가용한 만큼만 사용.
+    Args:
+        team_name: 팀명
+        num_games: 수집할 경기 수
+        home_only: True=홈만, False=원정만, None=전체
 
     Returns:
-        {
-            "estimated": True,
-            "games_used": int,
-            "lineup": [{"order": "1", "position": "우익수", "name": "홍창기", "frequency": 5}, ...],
-        }
+        [(lineup, weight), ...] — weight는 최근 경기일수록 높음
     """
     from backend.scrapers.kbo_today import get_game_list
 
-    # 최근 날짜부터 거슬러 올라가며 해당 팀 경기 찾기
-    collected_lineups: list[list[dict]] = []
+    collected: list[tuple[list[dict], float]] = []
     check_date = datetime.now()
 
-    for _ in range(30):  # 최대 30일 전까지
+    for _ in range(45):  # 최대 45일 전까지
         check_date -= timedelta(days=1)
         date_str = check_date.strftime("%Y%m%d")
 
@@ -171,9 +172,13 @@ def get_expected_lineup(team_name: str, num_games: int = 5) -> dict:
         for game in games:
             if game["status"] != "final":
                 continue
-
-            # 이 팀이 참여한 경기인지
             if team_name not in (game.get("home_team", ""), game.get("away_team", "")):
+                continue
+
+            is_home = game.get("home_team", "") == team_name
+            if home_only is True and not is_home:
+                continue
+            if home_only is False and is_home:
                 continue
 
             game_id = game.get("game_id", "")
@@ -184,47 +189,110 @@ def get_expected_lineup(team_name: str, num_games: int = 5) -> dict:
             if not lineup_data or not lineup_data.get("available"):
                 continue
 
-            # 해당 팀 라인업 추출
-            is_home = game.get("home_team", "") == team_name
             players = lineup_data["home_lineup"] if is_home else lineup_data["away_lineup"]
             if players:
-                collected_lineups.append(players[:9])  # 선발 9명만
+                # 최근 경기 가중치: 0.9^(n) — 가장 최근=1.0, 그 전=0.9, ...
+                weight = 0.9 ** len(collected)
+                collected.append((players[:9], weight))
 
-            if len(collected_lineups) >= num_games:
+            if len(collected) >= num_games:
                 break
 
-        if len(collected_lineups) >= num_games:
+        if len(collected) >= num_games:
             break
 
-    if not collected_lineups:
+    return collected
+
+
+def _pick_lineup_no_duplicates(
+    order_scores: dict[str, dict[str, float]],
+) -> list[dict]:
+    """
+    타순별 가중 점수에서 중복 없이 최적 라인업 선택.
+
+    Greedy: 점수 높은 순으로 배정, 이미 선택된 선수는 스킵.
+    """
+    # (order, name|pos, score) 전체를 모아서 점수 내림차순 정렬
+    candidates = []
+    for order, players in order_scores.items():
+        for name_pos, score in players.items():
+            candidates.append((order, name_pos, score))
+    candidates.sort(key=lambda x: x[2], reverse=True)
+
+    used_names: set[str] = set()
+    assigned: dict[str, tuple[str, float]] = {}  # order → (name_pos, score)
+
+    for order, name_pos, score in candidates:
+        name = name_pos.split("|", 1)[0]
+        if order in assigned or name in used_names:
+            continue
+        assigned[order] = (name_pos, score)
+        used_names.add(name)
+
+    result = []
+    for order in sorted(assigned.keys(), key=lambda x: int(x) if x.isdigit() else 99):
+        name_pos, score = assigned[order]
+        name, position = name_pos.split("|", 1)
+        result.append({
+            "order": order,
+            "position": position,
+            "name": name,
+            "score": round(score, 2),
+        })
+
+    return result[:9]
+
+
+def get_expected_lineup(
+    team_name: str,
+    num_games: int = 10,
+    is_home: bool | None = None,
+) -> dict:
+    """
+    최근 경기 라인업에서 예상 선발 타선 추론 (개선 v2).
+
+    개선점:
+      - 10경기 lookback (기존 5)
+      - 최근 경기 가중치 (exponential decay 0.9^n)
+      - 홈/원정 분리 → 해당 상황 라인업 우선
+      - 타순 간 중복 제거 (greedy 최적 배정)
+
+    Returns:
+        {
+            "estimated": True,
+            "games_used": int,
+            "lineup": [{"order", "position", "name", "score"}, ...],
+        }
+    """
+    # 1) 홈/원정 특화 라인업 시도
+    collected = []
+    if is_home is not None:
+        collected = _collect_recent_lineups(team_name, num_games, home_only=is_home)
+
+    # 부족하면 전체에서 보충
+    if len(collected) < 5:
+        collected = _collect_recent_lineups(team_name, num_games, home_only=None)
+
+    if not collected:
         return {"estimated": True, "games_used": 0, "lineup": []}
 
-    # 타순별 최빈 선수 추출
-    order_players: dict[str, Counter] = {}
-    for lineup in collected_lineups:
+    # 2) 타순별 가중 점수 집계
+    order_scores: dict[str, dict[str, float]] = {}
+    for lineup, weight in collected:
         for p in lineup:
             order = p["order"]
-            if order not in order_players:
-                order_players[order] = Counter()
-            order_players[order][f"{p['name']}|{p['position']}"] += 1
+            key = f"{p['name']}|{p['position']}"
+            if order not in order_scores:
+                order_scores[order] = {}
+            order_scores[order][key] = order_scores[order].get(key, 0) + weight
 
-    estimated = []
-    for order in sorted(order_players.keys(), key=lambda x: int(x) if x.isdigit() else 99):
-        most_common = order_players[order].most_common(1)
-        if most_common:
-            name_pos, freq = most_common[0]
-            name, position = name_pos.split("|", 1)
-            estimated.append({
-                "order": order,
-                "position": position,
-                "name": name,
-                "frequency": freq,
-            })
+    # 3) 중복 없이 최적 배정
+    estimated = _pick_lineup_no_duplicates(order_scores)
 
     return {
         "estimated": True,
-        "games_used": len(collected_lineups),
-        "lineup": estimated[:9],
+        "games_used": len(collected),
+        "lineup": estimated,
     }
 
 
@@ -236,8 +304,13 @@ def format_expected_lineup_context(team_name: str, expected: dict) -> str:
     n = expected.get("games_used", 0)
     lines = [f"\n### {team_name} 예상 타선 (최근 {n}경기 기반)"]
     for p in expected["lineup"]:
-        freq_str = f" [{p['frequency']}/{n}경기]" if n > 0 else ""
-        lines.append(f"  {p['order']}번 {p['position']} {p['name']}{freq_str}")
+        score = p.get("score", 0)
+        freq = p.get("frequency")  # backward compat
+        if freq is not None:
+            detail = f" [{freq}/{n}경기]"
+        else:
+            detail = f" [신뢰도 {score:.1f}]" if n > 0 else ""
+        lines.append(f"  {p['order']}번 {p['position']} {p['name']}{detail}")
 
     return "\n".join(lines)
 
