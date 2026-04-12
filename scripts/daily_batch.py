@@ -48,12 +48,26 @@ def step1_collect_results(target_date: str) -> list[dict]:
     completed = [g for g in games if g["status"] == "final"]
     logger.info(f"  Found {len(completed)} completed games")
 
-    # raw 결과 저장 (append)
+    # raw 결과 저장 (중복 방지 — game_id 기준)
     results_file = ROOT / "data" / "daily_results.jsonl"
-    with open(results_file, "a", encoding="utf-8") as f:
-        for g in completed:
-            g["collected_at"] = datetime.now().isoformat()
-            f.write(json.dumps(g, ensure_ascii=False) + "\n")
+    existing_ids: set[str] = set()
+    if results_file.exists():
+        for line in results_file.read_text(encoding="utf-8").strip().split("\n"):
+            if line.strip():
+                try:
+                    existing_ids.add(json.loads(line).get("game_id", ""))
+                except json.JSONDecodeError:
+                    pass
+
+    new_games = [g for g in completed if g.get("game_id") not in existing_ids]
+    if new_games:
+        with open(results_file, "a", encoding="utf-8") as f:
+            for g in new_games:
+                g["collected_at"] = datetime.now().isoformat()
+                f.write(json.dumps(g, ensure_ascii=False) + "\n")
+        logger.info(f"  Appended {len(new_games)} new results (skipped {len(completed) - len(new_games)} duplicates)")
+    elif completed:
+        logger.info(f"  All {len(completed)} results already recorded — skipping")
 
     return completed
 
