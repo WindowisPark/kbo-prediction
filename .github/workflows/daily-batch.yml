@@ -3,7 +3,11 @@ name: Daily KBO Batch
 on:
   schedule:
     - cron: '0 15 * * *'  # UTC 15:00 = KST 00:00
-  workflow_dispatch:  # 수동 실행 가능
+  workflow_dispatch:
+    inputs:
+      date:
+        description: '대상 날짜 (YYYYMMDD). 비워두면 어제'
+        required: false
 
 permissions:
   contents: write
@@ -27,7 +31,12 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python scripts/daily_batch.py
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.date }}" ]; then
+            ARGS="--date ${{ inputs.date }}"
+          fi
+          python scripts/daily_batch.py $ARGS
 
       - name: Commit updated data
         uses: stefanzweifel/git-auto-commit-action@v5
