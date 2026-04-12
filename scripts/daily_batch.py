@@ -59,100 +59,121 @@ def step1_collect_results(target_date: str) -> list[dict]:
 
 
 def step2_update_predictions(completed: list[dict]):
-    """예측 적중 여부 업데이트."""
+    """예측 적중 여부 업데이트 — DB 우선, JSON 보조."""
     logger.info("Step 2: Updating prediction accuracy")
-    history_file = ROOT / "data" / "prediction_history.json"
-    if not history_file.exists():
-        logger.info("  No prediction history found")
+
+    # 완료된 경기 결과를 키별로 정리
+    result_map: dict[str, dict] = {}
+    for game in completed:
+        home = unify_team(game["home_team"])
+        away = unify_team(game["away_team"])
+        key = f"{game['date']}_{home}_{away}"
+        if game["home_score"] == game["away_score"]:
+            actual_winner = "draw"
+            is_draw = True
+        elif game["home_score"] > game["away_score"]:
+            actual_winner = home
+            is_draw = False
+        else:
+            actual_winner = away
+            is_draw = False
+        result_map[key] = {
+            "actual_winner": actual_winner,
+            "is_draw": is_draw,
+            "home_score": game["home_score"],
+            "away_score": game["away_score"],
+        }
+
+    if not result_map:
+        logger.info("  No results to match")
         return
 
-    history = json.loads(history_file.read_text(encoding="utf-8"))
-    updated = 0
+    # 1) DB에서 미검증 예측을 직접 업데이트
+    db_updated = 0
+    db = SessionLocal()
+    try:
+        unverified = db.query(PredictionHistory).filter(
+            PredictionHistory.actual_winner.is_(None),
+        ).all()
+        logger.info(f"  Found {len(unverified)} unverified predictions in DB")
 
-    # 경기별 최신 예측만 사용 (중복 제거 — 같은 경기 여러 번 예측 시 마지막만)
-    seen_games = set()
-    unique_preds = []
-    for pred in reversed(history):
-        game_key = f"{pred['date']}_{pred['home_team']}_{pred['away_team']}"
-        if game_key not in seen_games:
-            seen_games.add(game_key)
-            unique_preds.append(pred)
-    unique_preds.reverse()
-
-    for pred in unique_preds:
-        if pred.get("actual_winner"):
-            continue
-
-        for game in completed:
-            home = unify_team(game["home_team"])
-            away = unify_team(game["away_team"])
-            if pred["home_team"] == home and pred["away_team"] == away and pred["date"] == game["date"]:
-                # 무승부 처리
-                if game["home_score"] == game["away_score"]:
-                    pred["actual_winner"] = "draw"
-                    pred["is_draw"] = True
-                    logger.info(f"  {away} @ {home}: 무승부 ({game['away_score']}-{game['home_score']}) — 적중률 제외")
+        for row in unverified:
+            key = f"{row.date}_{row.home_team}_{row.away_team}"
+            if key in result_map:
+                matched = result_map[key]
+                row.actual_winner = matched["actual_winner"]
+                row.is_draw = matched["is_draw"]
+                db_updated += 1
+                if matched["is_draw"]:
+                    logger.info(f"  DB: {row.away_team} @ {row.home_team}: 무승부 — 적중률 제외")
                 else:
-                    if game["home_score"] > game["away_score"]:
-                        pred["actual_winner"] = home
-                    else:
-                        pred["actual_winner"] = away
-                    pred["is_draw"] = False
-                    is_correct = pred["predicted_winner"] == pred["actual_winner"]
-                    logger.info(f"  {away} @ {home}: predicted={pred['predicted_winner']}, "
-                               f"actual={pred['actual_winner']} {'O' if is_correct else 'X'}")
+                    is_correct = row.predicted_winner == matched["actual_winner"]
+                    logger.info(f"  DB: {row.away_team} @ {row.home_team}: predicted={row.predicted_winner}, "
+                               f"actual={matched['actual_winner']} {'O' if is_correct else 'X'}")
 
-                pred["home_score"] = game["home_score"]
-                pred["away_score"] = game["away_score"]
-                updated += 1
+        db.commit()
+        logger.info(f"  DB: updated {db_updated} predictions")
+    except Exception as e:
+        logger.warning(f"  DB update failed: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
-    # 중복 제거된 결과를 history에 반영
-    # (원본 history의 해당 항목을 업데이트)
-    pred_map = {f"{p['date']}_{p['home_team']}_{p['away_team']}": p for p in unique_preds if p.get("actual_winner")}
-    for pred in history:
-        key = f"{pred['date']}_{pred['home_team']}_{pred['away_team']}"
-        if key in pred_map:
-            pred["actual_winner"] = pred_map[key]["actual_winner"]
-            pred["is_draw"] = pred_map[key].get("is_draw", False)
-            if "home_score" in pred_map[key]:
-                pred["home_score"] = pred_map[key]["home_score"]
-                pred["away_score"] = pred_map[key]["away_score"]
+    # 2) JSON 파일도 업데이트 (로컬 백업용)
+    history_file = ROOT / "data" / "prediction_history.json"
+    json_updated = 0
+    if history_file.exists():
+        history = json.loads(history_file.read_text(encoding="utf-8"))
+        for pred in history:
+            if pred.get("actual_winner"):
+                continue
+            key = f"{pred['date']}_{pred['home_team']}_{pred['away_team']}"
+            if key in result_map:
+                matched = result_map[key]
+                pred["actual_winner"] = matched["actual_winner"]
+                pred["is_draw"] = matched["is_draw"]
+                pred["home_score"] = matched["home_score"]
+                pred["away_score"] = matched["away_score"]
+                json_updated += 1
+        history_file.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+        logger.info(f"  JSON: updated {json_updated} predictions")
 
-    history_file.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
-    logger.info(f"  Updated {updated} predictions")
+    # 적중률 계산 — DB 기준
+    db = SessionLocal()
+    try:
+        all_rows = db.query(PredictionHistory).all()
+        # 경기별 최신 예측만 (중복 제거)
+        seen = set()
+        unique = []
+        for r in reversed(all_rows):
+            gk = f"{r.date}_{r.home_team}_{r.away_team}"
+            if gk not in seen:
+                seen.add(gk)
+                unique.append(r)
+        verified = [r for r in unique if r.actual_winner and not r.is_draw]
+        draws = sum(1 for r in unique if r.is_draw)
+        if verified:
+            correct = sum(1 for r in verified if r.predicted_winner == r.actual_winner)
+            logger.info(f"  Overall accuracy: {correct}/{len(verified)} ({correct/len(verified)*100:.1f}%) — draws excluded: {draws}")
+    except Exception as e:
+        logger.warning(f"  Accuracy calc from DB failed: {e}")
+    finally:
+        db.close()
 
-    # DB에도 actual_winner 반영
-    if pred_map:
-        db = SessionLocal()
-        try:
-            for pred in history:
-                key = f"{pred['date']}_{pred['home_team']}_{pred['away_team']}"
-                if key not in pred_map:
-                    continue
-                matched = pred_map[key]
-                row = db.query(PredictionHistory).filter(
-                    PredictionHistory.date == pred["date"],
-                    PredictionHistory.home_team == pred["home_team"],
-                    PredictionHistory.away_team == pred["away_team"],
-                    PredictionHistory.actual_winner.is_(None),
-                ).first()
-                if row:
-                    row.actual_winner = matched["actual_winner"]
-                    row.is_draw = matched.get("is_draw", False)
-            db.commit()
-            logger.info(f"  DB predictions updated")
-        except Exception as e:
-            logger.warning(f"  DB update failed (non-critical): {e}")
-            db.rollback()
-        finally:
-            db.close()
-
-    # 적중률 계산 (무승부 제외, 경기별 최신 예측만)
-    verified = [p for p in unique_preds if p.get("actual_winner") and not p.get("is_draw")]
-    draws = sum(1 for p in unique_preds if p.get("is_draw"))
-    if verified:
-        correct = sum(1 for p in verified if p["predicted_winner"] == p["actual_winner"])
-        logger.info(f"  Overall accuracy: {correct}/{len(verified)} ({correct/len(verified)*100:.1f}%) — draws excluded: {draws}")
+    # JSON 백업 적중률 로그
+    if history_file.exists():
+        _hist = json.loads(history_file.read_text(encoding="utf-8"))
+        _seen = set()
+        _unique = []
+        for _p in reversed(_hist):
+            _k = f"{_p['date']}_{_p['home_team']}_{_p['away_team']}"
+            if _k not in _seen:
+                _seen.add(_k)
+                _unique.append(_p)
+        _verified = [p for p in _unique if p.get("actual_winner") and not p.get("is_draw")]
+        if _verified:
+            _correct = sum(1 for p in _verified if p["predicted_winner"] == p["actual_winner"])
+            logger.info(f"  JSON accuracy: {_correct}/{len(_verified)} ({_correct/len(_verified)*100:.1f}%)")
 
 
 def step3_update_elo(completed: list[dict]):
