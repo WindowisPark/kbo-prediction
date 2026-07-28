@@ -42,4 +42,4 @@ jobs:
           commit_message: "daily: ELO update + accuracy tracking"
           # 글롭 금지 — data/*.jsonl 은 gitignore된 llm_costs.jsonl 을,
           # data/*.db 는 kbo_auth.db 를 잡아 git add 가 exit 128 로 죽는다.
-          file_pattern: "data/daily_results.jsonl data/elo_ratings.json data/prediction_history.json data/standings.json data/features/game_features_v5.csv"
+          file_pattern: "data/daily_results.jsonl data/pitching_logs.jsonl data/elo_ratings.json data/prediction_history.json data/standings.json data/features/game_features_v5.csv"

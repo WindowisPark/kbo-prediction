@@ -83,21 +83,34 @@ class GamePredictor:
         self.bay.fit(train, y_train)
         logger.info("EnsembleLGBM trained")
 
-        # Stacking — valid set(2023-2024)에서 메타 러너 학습
+        # Stacking — 메타 러너는 2023-2024를 valid로 쓴다.
+        # 주의: 서빙용 베이스 모델(self.xgb/bay/elo)은 <=2024로 학습돼 있어
+        # 2023-24가 in-sample이다. 그 확률로 메타를 적합하면 베이스가 실제보다
+        # 정확해 보이고 메타 가중치가 과신 방향으로 왜곡된다(관측: 베이스가
+        # 0.54~0.73일 때 stacking이 0.83). 메타 학습에만 <=2022로 학습한
+        # 별도 베이스를 써서 out-of-sample 확률을 만든다.
         valid = self.features_df[self.features_df["season"].isin([2023, 2024])].copy()
         y_valid = valid["home_win"]
         if len(valid) > 0:
             import numpy as np
-            xgb_vp = self.xgb.predict_proba(valid)
-            bay_vp = self.bay.predict_proba(valid)
-            # ELO valid용 별도 인스턴스
-            elo_v = ELOPredictor(k=20, home_adv=20, reversion=0.3)
-            elo_v.fit(train, y_train)
-            elo_vp = elo_v.predict_and_update(valid)
-            meta_valid = np.column_stack([xgb_vp, elo_vp, bay_vp])
+            meta_train = self.features_df[self.features_df["season"] <= 2022].copy()
+            y_meta_train = meta_train["home_win"]
+
+            xgb_m = XGBoostPredictor()
+            xgb_m.fit(meta_train, y_meta_train)
+            bay_m = BayesianPredictor(n_bootstrap=5)
+            bay_m.fit(meta_train, y_meta_train)
+            elo_m = ELOPredictor(k=20, home_adv=20, reversion=0.3)
+            elo_m.fit(meta_train, y_meta_train)
+
+            meta_valid = np.column_stack([
+                xgb_m.predict_proba(valid),
+                elo_m.predict_and_update(valid),
+                bay_m.predict_proba(valid),
+            ])
             self.stacking = StackingPredictor()
             self.stacking.fit_meta(meta_valid, y_valid.values)
-            logger.info("Stacking meta-learner trained")
+            logger.info(f"Stacking meta-learner trained (OOS bases: {len(meta_train)} games <=2022)")
 
         # 투수 스탯 DB (선발투수 조회용)
         pitcher_path = ROOT / "data" / "processed" / "pitching_2000_2025.csv"

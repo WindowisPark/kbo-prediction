@@ -3,9 +3,9 @@
 ## 완료
 
 - [x] 데이터 수집 파이프라인 (KBO 스크래핑 + Kaggle)
-- [x] 피처 엔지니어링 v5 (103 피처, 양쪽 선발투수, 올시즌 스탯)
-- [x] ML 모델 3종 (XGBoost 62.9%, ELO 54.6%, EnsembleLGBM 62.0%)
-- [x] Stacking 앙상블 (LogisticRegression 메타 러너: 61.6%)
+- [x] 피처 엔지니어링 v5 (89열 / 모델 사용 59피처)
+- [x] ML 모델 3종 — 2026-07-28 실측: XGBoost 53.0%, ELO 54.6%, EnsembleLGBM 51.4% (2025 홀드아웃)
+- [x] Stacking 앙상블 (LogisticRegression 메타 러너) — 메타 학습에 in-sample 누수 있음, 수정 대상
 - [x] 멀티 에이전트 토론 (3-provider: Gemini+GPT+Claude)
 - [x] 자동 맥락 수집 (최근 경기, 선발투수 스탯, 용병/신인 판별)
 - [x] FastAPI 백엔드 (async 병렬, 5경기 동시)
@@ -13,8 +13,8 @@
 - [x] 일일 배치 (ELO 갱신, 적중률 추적)
 - [x] 법적 준수 (면책/약관/개인정보, "분석" 포지셔닝)
 - [x] 전문가 리뷰 반영 (LLM 서빙 + ML 방법론)
-- [x] 홈 선발투수 개인 스탯 피처 (v4: +2%p)
-- [x] Optuna 하이퍼파라미터 자동 튜닝 (XGB 62.9%)
+- [ ] ~~홈 선발투수 개인 스탯 피처 (v4: +2%p)~~ — **누수로 판명, v5에 미포함** ([models.md](models.md#v4-629는-누수였다))
+- [x] Optuna 하이퍼파라미터 자동 튜닝 — 튜닝 자체는 유효하나 62.9%는 누수 피처 기준값
 - [x] Calibration 검증 (predicted-actual gap < 3%)
 - [x] 홈 어드밴티지 최적값 (KBO 실측: 30→20)
 - [x] 모델 버전 관리 (joblib save/load)

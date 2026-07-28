@@ -385,6 +385,44 @@ def step5_append_games(completed: list[dict]):
         logger.info("  No new games to add")
 
 
+def step5b_collect_pitching_logs(new_games: list[dict]):
+    """경기별 투수 등판 기록 수집 → data/pitching_logs.jsonl
+
+    as-of 선발 스탯과 불펜 소진 피처의 원천. 신규 경기만 처리한다.
+    """
+    logger.info("Step 5b: Collecting pitching logs")
+    if not new_games:
+        logger.info("  No new games — skipping")
+        return
+
+    import requests
+    from backend.scrapers.kbo_pitching_log import (
+        fetch_pitching_log, HEADERS, _load_name_cache, _save_name_cache,
+    )
+
+    log_file = ROOT / "data" / "pitching_logs.jsonl"
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    cache = _load_name_cache()
+
+    written = 0
+    with open(log_file, "a", encoding="utf-8") as f:
+        for game in new_games:
+            records = fetch_pitching_log(game["game_id"], session=session, cache=cache)
+            if not records:
+                logger.warning(f"  {game['game_id']}: 등판기록 수집 실패")
+                continue
+            for rec in records:
+                rec["date"] = game["date"]
+                rec["team"] = game["home_team"] if rec["side"] == "home" else game["away_team"]
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            written += len(records)
+
+    _save_name_cache(cache)
+    session.close()
+    logger.info(f"  Collected {written} pitching appearances from {len(new_games)} games")
+
+
 def step6_rebuild_features():
     """피처 매트릭스 재빌드 — XGBoost/LGBM이 최신 데이터를 사용하도록."""
     logger.info("Step 6: Rebuilding feature matrix")
@@ -478,6 +516,9 @@ def main():
 
         # Step 5: 데이터셋 추가
         step5_append_games(completed)
+
+        # Step 5b: 투수 등판 기록 수집 (신규 경기만 — 중복 append 방지)
+        step5b_collect_pitching_logs(new_games)
 
         # Step 6: 피처 매트릭스 재빌드
         step6_rebuild_features()
