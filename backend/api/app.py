@@ -165,7 +165,7 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing database...")
     init_db()
     logger.info("Loading models...")
-    predictor = GamePredictor(debate_rounds=2)
+    predictor = GamePredictor(debate_rounds=1)
     predictor.load_models()
     load_history()
     logger.info("Ready!")

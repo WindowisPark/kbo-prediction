@@ -15,7 +15,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from .llm_clients import GPTClient
+from .llm_clients import OpenRouterClient
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ def gather_context_from_data(
 
 def gather_context_from_web(home_team: str, away_team: str, date: str) -> str:
     """LLM에게 두 팀의 최신 상황을 요약하게 한다."""
-    client = GPTClient("gpt-4o")
+    client = OpenRouterClient("openai/gpt-4.1-mini")
 
     prompt = f"""당신은 KBO 야구 리서치 에이전트입니다.
 아래 두 팀의 **현재 상황**을 짧게 정리해주세요.

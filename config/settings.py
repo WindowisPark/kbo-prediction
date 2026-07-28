@@ -45,6 +45,6 @@ ROLLING_WINDOWS = [10, 20, 30]  # 최근 N경기 rolling stats
 TRAIN_TEST_SPLIT_YEAR = 2023    # 2000-2022 학습, 2023-2024 검증, 2025 테스트
 
 # LLM 에이전트 설정
-AGENT_MODEL = "claude-sonnet-4-6-20250514"
-DEBATE_ROUNDS = 2
+AGENT_MODEL = "anthropic/claude-haiku-4.5"  # OpenRouter 슬러그
+DEBATE_ROUNDS = 1
 NUM_AGENTS = 3

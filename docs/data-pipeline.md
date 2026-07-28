@@ -32,7 +32,7 @@ data/
 │   ├── pitching_2000_2025.csv         5,752행 × 42열
 │   └── games_with_starters.csv        경기+선발 매칭
 ├── features/
-│   └── game_features_v5.csv           15,026행 × 103열
+│   └── game_features_v5.csv           15,080행 × 89열
 ├── elo_ratings.json                   최신 ELO (배치 갱신)
 ├── prediction_history.json            분석 이력
 ├── daily_results.jsonl                경기 결과 누적
@@ -45,13 +45,15 @@ data/
 **실행**: 매일 자정 (KST)
 
 ```
-Step 1: 어제 경기 결과 수집 (GetKboGameList)
-Step 2: 분석 적중 여부 업데이트
+Step 1: 어제 경기 결과 수집 (GetKboGameList, game_id 중복 방지)
+Step 2: 분석 적중 여부 업데이트 — DB 직접 조회/업데이트 우선, JSON 보조
          - 무승부: is_draw=True → 적중률에서 제외
          - 중복 분석: 경기별 최신 1건만 반영
 Step 3: ELO 레이팅 갱신 → elo_ratings.json
-Step 4: 새 경기를 games CSV에 추가
-Step 5: 적중률 요약 → batch.log
+Step 4: 순위표 + 연승/연패 갱신 → standings.json
+Step 5: 새 경기를 games CSV에 추가
+Step 6: 피처 매트릭스 재빌드 → game_features_v5.csv (XGBoost/LGBM 최신화)
+Step 7: 적중률 요약 → batch.log
 ```
 
 ## 2단계 배치 예측

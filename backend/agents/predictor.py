@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class GamePredictor:
     """ML 모델 + 에이전트 토론을 결합한 경기 예측기."""
 
-    def __init__(self, features_path: str | Path = None, debate_rounds: int = 2):
+    def __init__(self, features_path: str | Path = None, debate_rounds: int = 1):
         self.features_path = features_path or ROOT / "data" / "features" / "game_features_v5.csv"
         self.debate_rounds = debate_rounds
         self.features_df = None
@@ -390,7 +390,7 @@ def demo():
     import sys
     sys.stdout.reconfigure(encoding="utf-8")
 
-    predictor = GamePredictor(debate_rounds=2)
+    predictor = GamePredictor(debate_rounds=1)
     predictor.load_models()
 
     # 2025 시즌 경기 예측 테스트

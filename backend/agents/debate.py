@@ -3,13 +3,13 @@
 
 구조 (Du et al. 2023 + ReConcile 방식):
   Phase 1: 독립 분석 (3 에이전트, 각각 다른 LLM)
-  Phase 2: 토론 (2 라운드, 동시생성→수정)
+  Phase 2: 토론 (기본 1라운드, 동시생성→수정)
   Phase 3: Synthesizer가 최종 종합
 
 모델 배정 (3-provider 다양성):
-  - Analyst (Gemini 2.5 Pro): 수학/추론, 통계 분석
-  - Scout (GPT-4o): 한국어 맥락, KBO 도메인 지식
-  - Critic (Claude Sonnet 4): 비판적 사고, sycophancy 방지
+  - Analyst (Gemini 2.5 Flash): 수학/추론, 통계 분석
+  - Scout (GPT-4.1 mini): 한국어 맥락, KBO 도메인 지식
+  - Critic (Claude Haiku 4.5): 비판적 사고, sycophancy 방지
   - Synthesizer (Gemini 2.5 Flash): JSON 출력, 종합
 """
 import json
@@ -137,7 +137,7 @@ def _extract_confidence(text: str) -> str:
 class DebatePipeline:
     """멀티 모델 에이전트 토론 파이프라인."""
 
-    def __init__(self, debate_rounds: int = 2):
+    def __init__(self, debate_rounds: int = 1):
         self.debate_rounds = debate_rounds
         self.agents = {
             "Analyst": {"system": ANALYST_SYSTEM},

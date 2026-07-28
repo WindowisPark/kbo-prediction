@@ -6,20 +6,28 @@
 
 ```
 Phase 1: 독립 분석 ─── 3 에이전트 병렬
-Phase 2: 토론 2라운드 ─ 라운드별 3 에이전트 병렬
+Phase 2: 토론 1라운드 ─ 3 에이전트 병렬 (기본값, debate_rounds로 조정)
 Phase 3: 종합 ──────── Synthesizer 1회
 ```
 
 Phase2 결과만 Synthesizer에 전달 (Phase1은 이미 반영됨 → 토큰 40-50% 절약)
+토론 라운드 기본 1회 (Du et al. 2023: 이득 대부분이 1라운드에 집중, 경기당 호출 11→8회)
 
-## 에이전트 구성
+## 에이전트 구성 (2026-07 비용 최적화 재배치, OpenRouter 게이트웨이 경유)
 
-| Agent | LLM | temp | 역할 |
+모든 호출은 OpenRouter(`OPENROUTER_API_KEY`) 단일 키로 나감. 응답의 실비용(USD)이
+`LLMCostLog`에 그대로 기록되며, 모델별 지출은 openrouter.ai/activity에서도 확인 가능.
+
+| Agent | LLM (OpenRouter 슬러그) | temp | 역할 |
 |-------|-----|------|------|
-| Analyst | Gemini 2.5 Flash | 0.4 | 수학/추론, 통계 분석 |
-| Scout | GPT-4o | 0.4 | 한국어 맥락, KBO 도메인 지식 |
-| Critic | Claude Sonnet 4 | 0.4 | 비판적 사고, sycophancy 방지 |
-| Synthesizer | Gemini 2.5 Flash | 0.1 | 최종 JSON 출력 |
+| Analyst | google/gemini-2.5-flash | 0.4 | 수학/추론, 통계 분석 |
+| Scout | openai/gpt-4.1-mini | 0.4 | 한국어 맥락, KBO 도메인 지식 |
+| Critic | anthropic/claude-haiku-4.5 | 0.4 | 비판적 사고, sycophancy 방지 |
+| Synthesizer | google/gemini-2.5-flash | 0.1 | 최종 JSON 출력 |
+
+프롬프트 경량화: 에이전트 출력 500자 제한(토론 라운드 300자), 마지막 줄 고정 포맷
+(`최종 예측: 홈팀 승리 확률 0.XXX / 신뢰도 ...`)으로 확률 추출 안정화,
+Synthesizer는 ```json 코드블록 단독 출력.
 
 ## 컨텍스트 주입 체계
 
@@ -61,9 +69,11 @@ Phase2 결과만 Synthesizer에 전달 (Phase1은 이미 반영됨 → 토큰 40
 |------|----------|---------|-----|
 | Context Gatherer | 1 | 5 | 150 |
 | Phase1 | 3 | 15 | 450 |
-| Phase2 (2R) | 6 | 30 | 900 |
+| Phase2 (1R) | 3 | 15 | 450 |
 | Synthesizer | 1 | 5 | 150 |
-| **합계** | **11** | **55** | **~1,650** |
-| **비용** | ~$0.30 | ~$1.5 | **~$45** |
+| **합계** | **8** | **40** | **~1,200** |
+| **비용 (추정)** | ~$0.03 | ~$0.15 | **~$5** |
 
-*Gemini 2.5 Flash 기반 Analyst/Synthesizer로 비용 절감 (기존 GPT-4o 대비)*
+*2026-07 재배치: Critic Sonnet 4→Haiku 4.5 ($3/$15→$1/$5), Scout·리서치 GPT-4o→GPT-4.1 mini,
+Analyst Gemini Pro→Flash, 토론 2R→1R, 출력 길이 제한 — 기존 ~$45/월 대비 약 90% 절감 추정.
+실측은 `LLMCostLog` 테이블로 확인.*

@@ -281,7 +281,7 @@ def run_auto(target_date: str | None = None):
     # 모델 로드
     init_db()
     logger.info("Loading models...")
-    predictor = GamePredictor(debate_rounds=2)
+    predictor = GamePredictor(debate_rounds=1)
     predictor.load_models()
     logger.info("Models loaded")
 
@@ -319,7 +319,7 @@ def run_forced(phase: int, target_date: str | None = None):
     init_db()
 
     logger.info("Loading models...")
-    predictor = GamePredictor(debate_rounds=2)
+    predictor = GamePredictor(debate_rounds=1)
     predictor.load_models()
     logger.info("Models loaded")
 

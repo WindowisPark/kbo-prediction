@@ -4,22 +4,33 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# 모델별 가격 ($ per 1M tokens)
+# 모델별 가격 ($ per 1M tokens) — cost_usd 미제공 시 fallback 계산용
 PRICING = {
+    # OpenRouter 슬러그 (현재 사용)
+    "google/gemini-2.5-flash": {"input": 0.30, "output": 2.5},
+    "openai/gpt-4.1-mini": {"input": 0.40, "output": 1.6},
+    "anthropic/claude-haiku-4.5": {"input": 1.0, "output": 5.0},
+    # 직접 호출 시절 모델 ID (과거 로그 호환)
     "gemini-2.5-pro": {"input": 1.25, "output": 10.0},
-    "gemini-2.5-flash": {"input": 0.15, "output": 0.6},
+    "gemini-2.5-flash": {"input": 0.30, "output": 2.5},
     "gpt-4o": {"input": 2.5, "output": 10.0},
     "gpt-4-turbo": {"input": 10.0, "output": 30.0},
     "gpt-4o-mini": {"input": 0.15, "output": 0.6},
+    "gpt-4.1-mini": {"input": 0.40, "output": 1.6},
     "claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
+    "claude-haiku-4-5": {"input": 1.0, "output": 5.0},
     "claude-3-haiku-20240307": {"input": 0.25, "output": 1.25},
 }
 
 
-def log_cost(model: str, input_tokens: int, output_tokens: int, agent: str = ""):
-    """API 호출 비용을 DB에 기록."""
-    pricing = PRICING.get(model, {"input": 5.0, "output": 15.0})
-    cost = (input_tokens * pricing["input"] + output_tokens * pricing["output"]) / 1_000_000
+def log_cost(model: str, input_tokens: int, output_tokens: int, agent: str = "",
+             cost_usd: float | None = None):
+    """API 호출 비용을 DB에 기록. cost_usd가 주어지면(OpenRouter 실비용) 그대로 사용."""
+    if cost_usd is not None:
+        cost = cost_usd
+    else:
+        pricing = PRICING.get(model, {"input": 5.0, "output": 15.0})
+        cost = (input_tokens * pricing["input"] + output_tokens * pricing["output"]) / 1_000_000
 
     try:
         from backend.auth.database import SessionLocal

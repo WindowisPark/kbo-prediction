@@ -28,7 +28,7 @@ python scripts/daily_batch.py
 
 ## 주의사항
 
-- `.env`에 `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY` 필수
+- `.env`에 `OPENROUTER_API_KEY` 필수 — LLM 호출은 전부 OpenRouter 게이트웨이 경유 (3사 직접 키 불필요)
 - 프로덕션 DB: PostgreSQL (Railway), 로컬: SQLite (`data/kbo_auth.db`)
 - 런타임 데이터(분석 이력, LLM 비용)는 PostgreSQL에 저장 (파일 아님)
 - 서비스 용어: "분석" 사용 ("예측" 아님) — 법적 포지셔닝
