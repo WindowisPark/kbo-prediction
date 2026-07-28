@@ -41,11 +41,28 @@ from backend.auth.database import SessionLocal
 from backend.auth.models import PredictionHistory
 
 
-def step1_collect_results(target_date: str) -> list[dict]:
-    """어제(또는 지정 날짜) 경기 결과 수집."""
+# 정규시즌 구단 — 올스타전(나눔/드림) 등 비정규 경기 배제용
+REGULAR_TEAMS = {"KIA", "KT", "LG", "NC", "SSG", "두산", "롯데", "삼성", "키움", "한화"}
+
+
+def step1_collect_results(target_date: str) -> tuple[list[dict], list[dict]]:
+    """어제(또는 지정 날짜) 경기 결과 수집.
+
+    Returns:
+        (completed, new_games) — new_games는 이번 실행에서 처음 기록된 경기만.
+        step3(ELO)는 멱등하지 않으므로 반드시 new_games를 받아야 한다.
+    """
     logger.info(f"Step 1: Collecting results for {target_date}")
     games = get_game_list(target_date)
     completed = [g for g in games if g["status"] == "final"]
+
+    non_regular = [g for g in completed
+                   if g["home_team"] not in REGULAR_TEAMS or g["away_team"] not in REGULAR_TEAMS]
+    if non_regular:
+        completed = [g for g in completed if g not in non_regular]
+        for g in non_regular:
+            logger.info(f"  Skipped non-regular game: {g['away_team']} @ {g['home_team']} ({g['game_id']})")
+
     logger.info(f"  Found {len(completed)} completed games")
 
     # raw 결과 저장 (중복 방지 — game_id 기준)
@@ -69,7 +86,7 @@ def step1_collect_results(target_date: str) -> list[dict]:
     elif completed:
         logger.info(f"  All {len(completed)} results already recorded — skipping")
 
-    return completed
+    return completed, new_games
 
 
 def step2_update_predictions(completed: list[dict]):
@@ -444,14 +461,17 @@ def main():
     logger.info(f"Target date: {target}")
 
     # Step 1: 결과 수집
-    completed = step1_collect_results(target)
+    completed, new_games = step1_collect_results(target)
 
     if completed:
         # Step 2: 적중 여부 업데이트
         step2_update_predictions(completed)
 
-        # Step 3: ELO 갱신
-        step3_update_elo(completed)
+        # Step 3: ELO 갱신 — 신규 경기만 (재실행 시 이중 반영 방지)
+        if new_games:
+            step3_update_elo(new_games)
+        else:
+            logger.info("Step 3: No new games — ELO unchanged")
 
         # Step 4: 순위표 + 연승/연패 갱신
         step4_update_standings(completed)

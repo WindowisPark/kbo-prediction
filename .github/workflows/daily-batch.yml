@@ -27,9 +27,7 @@ jobs:
 
       - name: Run daily batch
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          # daily_batch는 LLM을 호출하지 않음 (수집/ELO/피처만)
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           ARGS=""
@@ -42,4 +40,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "daily: ELO update + accuracy tracking"
-          file_pattern: "data/*.json data/*.jsonl data/raw/*.csv data/features/*.csv"
+          file_pattern: "data/*.json data/*.jsonl data/features/*.csv"

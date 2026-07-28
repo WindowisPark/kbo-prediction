@@ -32,9 +32,7 @@ jobs:
 
       - name: Run batch predict
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DATABASE_URL: sqlite:///./data/kbo_auth.db
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         run: |
