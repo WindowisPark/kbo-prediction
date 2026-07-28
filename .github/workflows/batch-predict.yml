@@ -49,4 +49,5 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "batch: pre-computed predictions"
-          file_pattern: "data/*.db data/*.json data/*.jsonl"
+          # 글롭 금지 — data/*.db 는 전부 gitignore 대상이라 exit 128 을 유발한다.
+          file_pattern: "data/daily_results.jsonl data/elo_ratings.json data/prediction_history.json data/standings.json"
