@@ -1,96 +1,96 @@
 {
   "season": 2026,
-  "updated_at": "2026-07-31T16:30:00.342191",
+  "updated_at": "2026-08-01T15:50:40.859109",
   "teams": {
     "LG": {
       "wins": 55,
-      "losses": 42,
+      "losses": 43,
       "draws": 0,
-      "games_played": 97,
-      "win_pct": 0.567,
+      "games_played": 98,
+      "win_pct": 0.561,
       "recent_win_pct": 0.3,
-      "streak": 1
+      "streak": -1
     },
     "KT": {
-      "wins": 56,
+      "wins": 57,
       "losses": 36,
       "draws": 2,
-      "games_played": 94,
-      "win_pct": 0.609,
+      "games_played": 95,
+      "win_pct": 0.613,
       "recent_win_pct": 0.889,
-      "streak": 3
+      "streak": 4
     },
     "SSG": {
       "wins": 37,
-      "losses": 58,
+      "losses": 59,
       "draws": 4,
-      "games_played": 99,
-      "win_pct": 0.389,
+      "games_played": 100,
+      "win_pct": 0.385,
       "recent_win_pct": 0.556,
-      "streak": -1
+      "streak": -2
     },
     "KIA": {
       "wins": 52,
-      "losses": 45,
+      "losses": 46,
       "draws": 2,
-      "games_played": 99,
-      "win_pct": 0.536,
-      "recent_win_pct": 0.5,
-      "streak": 2
+      "games_played": 100,
+      "win_pct": 0.531,
+      "recent_win_pct": 0.4,
+      "streak": -1
     },
     "삼성": {
-      "wins": 58,
+      "wins": 59,
       "losses": 37,
       "draws": 2,
-      "games_played": 97,
-      "win_pct": 0.611,
-      "recent_win_pct": 0.5,
-      "streak": -2
+      "games_played": 98,
+      "win_pct": 0.615,
+      "recent_win_pct": 0.6,
+      "streak": 1
     },
     "롯데": {
       "wins": 42,
-      "losses": 53,
+      "losses": 54,
       "draws": 2,
-      "games_played": 97,
-      "win_pct": 0.442,
-      "recent_win_pct": 0.4,
-      "streak": -2
+      "games_played": 98,
+      "win_pct": 0.438,
+      "recent_win_pct": 0.3,
+      "streak": -3
     },
     "NC": {
-      "wins": 42,
+      "wins": 43,
       "losses": 50,
       "draws": 2,
-      "games_played": 94,
-      "win_pct": 0.457,
-      "recent_win_pct": 0.222,
-      "streak": -5
-    },
-    "두산": {
-      "wins": 50,
-      "losses": 45,
-      "draws": 3,
-      "games_played": 98,
-      "win_pct": 0.526,
-      "recent_win_pct": 0.667,
+      "games_played": 95,
+      "win_pct": 0.462,
+      "recent_win_pct": 0.333,
       "streak": 1
     },
-    "한화": {
-      "wins": 46,
-      "losses": 46,
+    "두산": {
+      "wins": 51,
+      "losses": 45,
       "draws": 3,
-      "games_played": 95,
-      "win_pct": 0.5,
+      "games_played": 99,
+      "win_pct": 0.531,
       "recent_win_pct": 0.667,
       "streak": 2
     },
+    "한화": {
+      "wins": 46,
+      "losses": 47,
+      "draws": 3,
+      "games_played": 96,
+      "win_pct": 0.495,
+      "recent_win_pct": 0.6,
+      "streak": -1
+    },
     "Heroes": {
-      "wins": 36,
+      "wins": 37,
       "losses": 62,
       "draws": 2,
-      "games_played": 100,
-      "win_pct": 0.367,
-      "recent_win_pct": 0.444,
-      "streak": -1
+      "games_played": 101,
+      "win_pct": 0.374,
+      "recent_win_pct": 0.5,
+      "streak": 1
     }
   }
 }
