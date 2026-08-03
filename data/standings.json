@@ -1,33 +1,33 @@
 {
   "season": 2026,
-  "updated_at": "2026-08-02T15:51:02.360500",
+  "updated_at": "2026-08-03T17:04:11.944080",
   "teams": {
     "LG": {
       "wins": 55,
-      "losses": 43,
+      "losses": 44,
       "draws": 1,
-      "games_played": 99,
-      "win_pct": 0.561,
+      "games_played": 100,
+      "win_pct": 0.556,
       "recent_win_pct": 0.333,
-      "streak": -1
+      "streak": -2
     },
     "KT": {
-      "wins": 58,
+      "wins": 59,
       "losses": 36,
       "draws": 2,
-      "games_played": 96,
-      "win_pct": 0.617,
+      "games_played": 97,
+      "win_pct": 0.621,
       "recent_win_pct": 0.889,
-      "streak": 5
+      "streak": 6
     },
     "SSG": {
       "wins": 38,
-      "losses": 59,
+      "losses": 60,
       "draws": 4,
-      "games_played": 101,
-      "win_pct": 0.392,
-      "recent_win_pct": 0.667,
-      "streak": 1
+      "games_played": 102,
+      "win_pct": 0.388,
+      "recent_win_pct": 0.556,
+      "streak": -1
     },
     "KIA": {
       "wins": 52,
@@ -40,21 +40,21 @@
     },
     "삼성": {
       "wins": 59,
-      "losses": 37,
+      "losses": 38,
       "draws": 2,
-      "games_played": 98,
-      "win_pct": 0.615,
-      "recent_win_pct": 0.6,
-      "streak": 1
+      "games_played": 99,
+      "win_pct": 0.608,
+      "recent_win_pct": 0.5,
+      "streak": -1
     },
     "롯데": {
-      "wins": 42,
+      "wins": 43,
       "losses": 54,
       "draws": 2,
-      "games_played": 98,
-      "win_pct": 0.438,
+      "games_played": 99,
+      "win_pct": 0.443,
       "recent_win_pct": 0.3,
-      "streak": -3
+      "streak": 1
     },
     "NC": {
       "wins": 43,
@@ -66,31 +66,31 @@
       "streak": 1
     },
     "두산": {
-      "wins": 51,
+      "wins": 52,
       "losses": 45,
       "draws": 4,
-      "games_played": 100,
-      "win_pct": 0.531,
+      "games_played": 101,
+      "win_pct": 0.536,
       "recent_win_pct": 0.625,
-      "streak": 2
+      "streak": 3
     },
     "한화": {
       "wins": 46,
-      "losses": 48,
+      "losses": 49,
       "draws": 3,
-      "games_played": 97,
-      "win_pct": 0.489,
-      "recent_win_pct": 0.6,
-      "streak": -2
+      "games_played": 98,
+      "win_pct": 0.484,
+      "recent_win_pct": 0.5,
+      "streak": -3
     },
     "Heroes": {
-      "wins": 37,
+      "wins": 38,
       "losses": 63,
       "draws": 2,
-      "games_played": 102,
-      "win_pct": 0.37,
+      "games_played": 103,
+      "win_pct": 0.376,
       "recent_win_pct": 0.5,
-      "streak": -1
+      "streak": 1
     }
   }
 }
