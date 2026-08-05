@@ -1,15 +1,15 @@
 {
   "season": 2026,
-  "updated_at": "2026-08-03T17:04:11.944080",
+  "updated_at": "2026-08-05T16:26:03.183557",
   "teams": {
     "LG": {
       "wins": 55,
-      "losses": 44,
+      "losses": 45,
       "draws": 1,
-      "games_played": 100,
-      "win_pct": 0.556,
+      "games_played": 101,
+      "win_pct": 0.55,
       "recent_win_pct": 0.333,
-      "streak": -2
+      "streak": -3
     },
     "KT": {
       "wins": 59,
@@ -21,13 +21,13 @@
       "streak": 6
     },
     "SSG": {
-      "wins": 38,
+      "wins": 39,
       "losses": 60,
       "draws": 4,
-      "games_played": 102,
-      "win_pct": 0.388,
+      "games_played": 103,
+      "win_pct": 0.394,
       "recent_win_pct": 0.556,
-      "streak": -1
+      "streak": 1
     },
     "KIA": {
       "wins": 52,
@@ -40,21 +40,21 @@
     },
     "삼성": {
       "wins": 59,
-      "losses": 38,
+      "losses": 39,
       "draws": 2,
-      "games_played": 99,
-      "win_pct": 0.608,
+      "games_played": 100,
+      "win_pct": 0.602,
       "recent_win_pct": 0.5,
-      "streak": -1
+      "streak": -2
     },
     "롯데": {
-      "wins": 43,
+      "wins": 44,
       "losses": 54,
       "draws": 2,
-      "games_played": 99,
-      "win_pct": 0.443,
-      "recent_win_pct": 0.3,
-      "streak": 1
+      "games_played": 100,
+      "win_pct": 0.449,
+      "recent_win_pct": 0.4,
+      "streak": 2
     },
     "NC": {
       "wins": 43,
@@ -75,22 +75,22 @@
       "streak": 3
     },
     "한화": {
-      "wins": 46,
+      "wins": 47,
       "losses": 49,
       "draws": 3,
-      "games_played": 98,
-      "win_pct": 0.484,
+      "games_played": 99,
+      "win_pct": 0.49,
       "recent_win_pct": 0.5,
-      "streak": -3
+      "streak": 1
     },
     "Heroes": {
       "wins": 38,
-      "losses": 63,
+      "losses": 64,
       "draws": 2,
-      "games_played": 103,
-      "win_pct": 0.376,
+      "games_played": 104,
+      "win_pct": 0.373,
       "recent_win_pct": 0.5,
-      "streak": 1
+      "streak": -1
     }
   }
 }
